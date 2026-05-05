@@ -29,6 +29,7 @@ venv/
 
 # Python virtual environments
 VoiceAI/.venv/
+/Assets/Scripts/VoiceAI/.venv/
 .venv/
 venv/
 python_env/
