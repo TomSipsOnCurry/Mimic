@@ -20,6 +20,9 @@
 /[Uu]ser[Ss]ettings/
 *.log
 
+.DS_Store
+/VoiceAI/model.gguf
+
 # Python virtual environments
 VoiceAI/.venv/
 .venv/
