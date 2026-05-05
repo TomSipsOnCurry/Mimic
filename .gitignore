@@ -20,6 +20,10 @@
 /[Uu]ser[Ss]ettings/
 *.log
 
+VoiceAI/.venv/
+.venv/
+venv/
+
 .DS_Store
 /VoiceAI/model.gguf
 
