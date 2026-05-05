@@ -1,3 +1,17 @@
+"""
+AI.py - Casual multiplayer co-op horror game companion AI
+
+SETUP:
+------
+Before running this script, install prerequisites:
+  macOS/Linux:  bash install_requirements.sh
+  Windows:      install_requirements.bat
+
+Or manually install with: pip install -r requirements.txt
+
+Then place your GGUF model file in this directory as 'model.gguf'
+"""
+
 import sys
 import os
 import time

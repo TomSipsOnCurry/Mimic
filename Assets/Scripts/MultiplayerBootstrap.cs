@@ -34,6 +34,7 @@ public class MultiplayerBootstrap : MonoBehaviour
     private float smoothedDeltaTime;
     private string status = "Offline";
 
+    private const int TargetFrameRate = 60;
     private const float SnapshotInterval = 0.05f;
     private const float FrameRateSmoothing = 0.1f;
 
@@ -64,8 +65,15 @@ public class MultiplayerBootstrap : MonoBehaviour
     private void Awake()
     {
         DontDestroyOnLoad(gameObject);
+        ConfigureFrameRate();
         ForceWindowedMode();
         InitializeNetworking();
+    }
+
+    private void ConfigureFrameRate()
+    {
+        QualitySettings.vSyncCount = 0;
+        Application.targetFrameRate = TargetFrameRate;
     }
 
     private void ForceWindowedMode()
