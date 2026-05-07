@@ -21,7 +21,6 @@ import threading
 from collections import deque
 
 from llama_cpp import Llama
-import pyttsx3
 
 # ─── REGEX CLEANING OF SHORT FORMS (manual removal) ───────────────────────────
 def remove_short_forms(text: str) -> str:
@@ -48,21 +47,15 @@ def remove_short_forms(text: str) -> str:
     text = re.sub(r'(\w+)ngl\b', r'\1', text)
     return text
 
-# ─── TTS ENGINE ───────────────────────────────────────────────────────────────
-def build_engine():
-    engine = pyttsx3.init()
-    engine.setProperty("rate", 165)
-    engine.setProperty("volume", 1.0)
-    return engine
-
+# ─── TTS ENGINE (removed) ───────────────────────────────────────────────────
+# Text-to-speech has been removed in favor of a lightweight SAM-based player
+# in VoiceAI/sam_player.html. The speak function now only prints the text so
+# callers can still use it without a runtime TTS dependency.
 def speak(text: str):
     if not text:
         return
     text = remove_short_forms(text)
-    engine = build_engine()
-    engine.say(text)
-    engine.runAndWait()
-    engine.stop()
+    print(f"[TTS disabled] {text}")
 
 # ─── SLM ENGINE WITH IN‑MEMORY HISTORY ONLY ──────────────────────────────────
 class SLMMimic:

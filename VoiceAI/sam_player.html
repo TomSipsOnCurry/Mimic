@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SAM Player</title>
+</head>
+<body>
+  <h3>SAM TTS Player</h3>
+  <div id="status">Loading...</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sam-js@0.3.1/dist/samjs.min.js"></script>
+  <script>
+    function getQueryParam(name) {
+      const url = new URL(window.location.href);
+      return url.searchParams.get(name) || '';
+    }
+
+    async function run() {
+      const text = getQueryParam('text');
+      document.getElementById('status').innerText = text ? 'Speaking...' : 'No text provided.';
+
+      if (!text) return;
+
+      try {
+        // SamJs is exposed as a global SamJs (UMD build)
+        const sam = new SamJs();
+        await sam.speak(decodeURIComponent(text));
+        document.getElementById('status').innerText = 'Done.';
+      } catch (e) {
+        document.getElementById('status').innerText = 'Error: ' + e;
+        console.error(e);
+      }
+    }
+
+    // Some browsers block autoplay unless user interacted; show a prompt if playback is blocked.
+    window.addEventListener('load', () => {
+      // Decode + re-encode in case calling side didn't escape properly
+      const raw = getQueryParam('text');
+      if (raw) {
+        // Ensure the param is URI encoded when passed from Unity
+        const encoded = encodeURIComponent(raw);
+        const fullUrl = window.location.origin + window.location.pathname + '?text=' + encoded;
+        if (fullUrl !== window.location.href) {
+          window.location.replace(fullUrl);
+          return;
+        }
+      }
+      run();
+    });
+  </script>
+</body>
+</html>

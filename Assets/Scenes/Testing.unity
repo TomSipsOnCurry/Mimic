@@ -976,9 +976,9 @@ RectTransform:
   - {fileID: 1344398857}
   m_Father: {fileID: 417490790}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -338, y: -139.5}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 85, y: 20}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1542672923
@@ -1433,9 +1433,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a534895686f2443faaaa50eb32c45b46, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ChatManager
-  canvas: {fileID: 417490789}
   inputField: {fileID: 1542672923}
   localPlayerOnly: 0
+  ttsAudioSource: {fileID: 0}
+  remoteSubtitleLifetimeSeconds: 4
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

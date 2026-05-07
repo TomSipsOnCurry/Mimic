@@ -48,7 +48,13 @@ public class MouseLook : MonoBehaviour
 
     private void OnApplicationFocus(bool hasFocus)
     {
-        if (hasFocus)
+        if (!enabled)
+        {
+            return;
+        }
+
+        // If chat is open, ChatManager sets Cursor.visible = true. Don't fight it.
+        if (hasFocus && !Cursor.visible)
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;

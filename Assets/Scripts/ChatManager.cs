@@ -1,39 +1,83 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
-using System.IO;
 
 public class ChatManager : MonoBehaviour
 {
     [SerializeField] private TMP_InputField inputField;
-    [SerializeField] private bool localPlayerOnly;
-    [Header("Python")]
-    [SerializeField] private string pythonExecutable = "python3";
-    [SerializeField] private string speakScriptRelativePath = "VoiceAI/speak.py";
+
+    [Header("TTS")]
+    [SerializeField] private AudioSource ttsAudioSource;
+
+    [Header("Remote subtitles")]
+    [SerializeField] private float remoteSubtitleLifetimeSeconds = 4f;
 
     private bool chatOpen;
     private PlayerMovement playerMovement;
+    private MouseLook mouseLook;
+    private PlayerAvatar avatar;
+
+    private MultiplayerBootstrap multiplayer;
 
     private void Awake()
     {
+        avatar = GetComponent<PlayerAvatar>();
         playerMovement = GetComponent<PlayerMovement>();
+        mouseLook = GetComponentInChildren<MouseLook>(true);
 
         if (inputField == null)
         {
-            UnityEngine.Debug.LogError("ChatManager: inputField NOT assigned in Inspector!");
+            Debug.LogError("ChatManager: inputField NOT assigned in Inspector!");
         }
         else
         {
             inputField.gameObject.SetActive(false);
         }
 
-        // Helpful log so we know what path Unity will use.
-        UnityEngine.Debug.Log($"ChatManager: speak.py path = {GetSpeakScriptPath()}");
+        Debug.Log("ChatManager: SAM TTS ready.");
+    }
+
+    private void Start()
+    {
+        // This component exists on the Player template and is cloned.
+        // Don't disable it here (disabled state would get cloned). Just no-op on non-local avatars.
+        if (avatar != null && !avatar.IsLocalPlayer)
+        {
+            return;
+        }
+
+        RemoteSubtitleStack.Ensure();
+
+        multiplayer = MultiplayerBootstrap.Instance != null
+            ? MultiplayerBootstrap.Instance
+            : FindBootstrap();
+
+        if (multiplayer != null)
+        {
+            multiplayer.ChatReceived += OnChatReceived;
+        }
+    }
+
+    private static MultiplayerBootstrap FindBootstrap()
+    {
+#if UNITY_2023_1_OR_NEWER
+        return Object.FindAnyObjectByType<MultiplayerBootstrap>();
+#else
+        return Object.FindObjectOfType<MultiplayerBootstrap>();
+#endif
+    }
+
+    private void OnDestroy()
+    {
+        if (multiplayer != null)
+        {
+            multiplayer.ChatReceived -= OnChatReceived;
+        }
     }
 
     private void Update()
     {
-        if (localPlayerOnly && playerMovement != null && !playerMovement.enabled)
+        if (!ShouldProcessLocalInput())
         {
             return;
         }
@@ -48,8 +92,10 @@ public class ChatManager : MonoBehaviour
             if (inputField != null && !string.IsNullOrWhiteSpace(inputField.text))
             {
                 string message = inputField.text.Trim();
-                Speak(message);
+                SendChat(message);
                 inputField.text = "";
+                inputField.ActivateInputField();
+                inputField.Select();
             }
         }
 
@@ -57,6 +103,17 @@ public class ChatManager : MonoBehaviour
         {
             ToggleChat();
         }
+    }
+
+    private bool ShouldProcessLocalInput()
+    {
+        // If this ChatManager lives on a PlayerAvatar, only the local one should process input.
+        if (avatar != null)
+        {
+            return avatar.IsLocalPlayer;
+        }
+
+        return true;
     }
 
     private void ToggleChat()
@@ -67,6 +124,8 @@ public class ChatManager : MonoBehaviour
         {
             inputField.gameObject.SetActive(chatOpen);
         }
+
+        SetPlayerControlEnabled(!chatOpen);
 
         if (chatOpen)
         {
@@ -83,6 +142,19 @@ public class ChatManager : MonoBehaviour
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+        }
+    }
+
+    private void SetPlayerControlEnabled(bool enabled)
+    {
+        if (playerMovement != null)
+        {
+            playerMovement.enabled = enabled;
+        }
+
+        if (mouseLook != null)
+        {
+            mouseLook.enabled = enabled;
         }
     }
 
@@ -107,100 +179,48 @@ public class ChatManager : MonoBehaviour
         return newInput || oldInput;
     }
 
-    private string GetSpeakScriptPath()
+    private void SendChat(string message)
     {
-        // Application.dataPath = .../<Project>/Assets
-        // We want .../<Project>/VoiceAI/speak.py
-        string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-        return Path.GetFullPath(Path.Combine(projectRoot, speakScriptRelativePath));
+        // Local playback (immediate)
+        Speak(message);
+
+        // Network: send only the text; each client synthesizes audio locally.
+        if (multiplayer != null && multiplayer.IsConnected)
+        {
+            multiplayer.SendChat(message);
+        }
     }
 
-    private System.Diagnostics.Process StartPython(string scriptPath, string escapedText)
+    private void OnChatReceived(int senderId, string message)
     {
-        string[] executablesToTry = new[]
+        if (!ShouldProcessLocalInput()) return;
+
+        if (multiplayer != null && senderId == multiplayer.LocalPlayerId)
         {
-            pythonExecutable,
-            "python3",
-            "python"
-        };
-
-        foreach (string exe in executablesToTry)
-        {
-            if (string.IsNullOrWhiteSpace(exe))
-            {
-                continue;
-            }
-
-            try
-            {
-                var psi = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = exe,
-                    Arguments = $"\"{scriptPath}\" \"{escapedText}\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-
-                var p = System.Diagnostics.Process.Start(psi);
-                if (p != null)
-                {
-                    return p;
-                }
-            }
-            catch
-            {
-                // Try next executable.
-            }
+            // We already played locally; host is configured to not echo, but keep this guard anyway.
+            return;
         }
 
-        UnityEngine.Debug.LogError(
-            "ChatManager TTS: Could not start Python. In Inspector set 'pythonExecutable' to a full path (e.g. /usr/bin/python3 or /opt/homebrew/bin/python3)."
-        );
-        return null;
+        RemoteSubtitleStack.Instance?.Push(message, remoteSubtitleLifetimeSeconds);
+        Speak(message);
     }
 
     public void Speak(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
 
-        string scriptPath = GetSpeakScriptPath();
-        if (!File.Exists(scriptPath))
+        var clip = UnitySAMWrapper.GenerateClipFromText(text);
+        if (clip == null)
         {
-            UnityEngine.Debug.LogError($"ChatManager TTS: speak.py not found at: {scriptPath}");
+            Debug.LogError("ChatManager: UnitySAMWrapper failed to generate audio clip.");
             return;
         }
 
-        try
+        if (ttsAudioSource == null)
         {
-            string escaped = text.Replace("\"", "\\\"");
-            var p = StartPython(scriptPath, escaped);
-            if (p == null)
-            {
-                return;
-            }
-
-#if UNITY_EDITOR
-            // In editor, block and log stderr/stdout to diagnose issues.
-            string stderr = p.StandardError.ReadToEnd();
-            string stdout = p.StandardOutput.ReadToEnd();
-            p.WaitForExit();
-
-            if (!string.IsNullOrWhiteSpace(stdout))
-            {
-                UnityEngine.Debug.Log($"ChatManager TTS stdout: {stdout}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(stderr))
-            {
-                UnityEngine.Debug.LogError($"ChatManager TTS stderr: {stderr}");
-            }
-#endif
+            ttsAudioSource = gameObject.AddComponent<AudioSource>();
         }
-        catch (System.Exception e)
-        {
-            UnityEngine.Debug.LogError($"ChatManager TTS exception: {e}");
-        }
+
+        ttsAudioSource.PlayOneShot(clip);
     }
 }

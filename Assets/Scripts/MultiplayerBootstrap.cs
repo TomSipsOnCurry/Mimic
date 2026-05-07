@@ -11,6 +11,12 @@ using UnityEngine;
 
 public class MultiplayerBootstrap : MonoBehaviour
 {
+    public static MultiplayerBootstrap Instance { get; private set; }
+
+    public bool IsConnected => isConnected;
+    public int LocalPlayerId => localPlayerId;
+
+    public event Action<int, string> ChatReceived;
     [SerializeField] private GameObject playerTemplate;
     [SerializeField] private string connectAddress = "127.0.0.1";
     [SerializeField] private ushort port = 7777;
@@ -45,6 +51,7 @@ public class MultiplayerBootstrap : MonoBehaviour
         public int id;
         public Vector3 position;
         public Quaternion rotation;
+        public string text;
     }
 
     private sealed class ClientConnection
@@ -64,6 +71,13 @@ public class MultiplayerBootstrap : MonoBehaviour
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
         DontDestroyOnLoad(gameObject);
         ConfigureFrameRate();
         ForceWindowedMode();
@@ -411,6 +425,9 @@ public class MultiplayerBootstrap : MonoBehaviour
             case "DISCONNECT":
                 HandleDisconnect(connection, message.id);
                 break;
+            case "CHAT":
+                HandleChat(connection, message);
+                break;
         }
     }
 
@@ -505,6 +522,47 @@ public class MultiplayerBootstrap : MonoBehaviour
         if (connection != null)
         {
             CleanupConnection(connection);
+        }
+    }
+
+    private void HandleChat(ClientConnection connection, NetworkMessage message)
+    {
+        if (message == null || string.IsNullOrWhiteSpace(message.text))
+        {
+            return;
+        }
+
+        // Trust the connection's assigned ID on the host to prevent spoofing.
+        if (isHosting && connection != null && connection.playerId >= 0)
+        {
+            message.id = connection.playerId;
+        }
+
+        if (isHosting)
+        {
+            // Relay to everyone except the sender.
+            BroadcastToClients(message, connection);
+        }
+
+        ChatReceived?.Invoke(message.id, message.text);
+    }
+
+    public void SendChat(string text)
+    {
+        if (!isConnected || string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        NetworkMessage msg = CreateChatMessage(localPlayerId, text);
+
+        if (isHosting)
+        {
+            BroadcastToClients(msg, null);
+        }
+        else if (localConnection != null)
+        {
+            SendMessage(localConnection, msg);
         }
     }
 
@@ -639,6 +697,18 @@ public class MultiplayerBootstrap : MonoBehaviour
             id = id,
             position = position,
             rotation = rotation
+        };
+    }
+
+    private NetworkMessage CreateChatMessage(int id, string text)
+    {
+        return new NetworkMessage
+        {
+            type = "CHAT",
+            id = id,
+            position = Vector3.zero,
+            rotation = Quaternion.identity,
+            text = text
         };
     }
 
