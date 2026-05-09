@@ -59,6 +59,12 @@ public class SimpleLanMultiplayerUI : MonoBehaviour
         {
             statusText.text = net != null ? net.Status : "No SimpleLanMultiplayer found";
         }
+
+        // Hide/disable UI when connected
+        if (canvas != null && net != null)
+        {
+            canvas.enabled = !net.IsConnected;
+        }
     }
 
     private void EnsureEventSystem()

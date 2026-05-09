@@ -24,6 +24,7 @@ public class PlayerMovement : MonoBehaviour
     private float currentTiltDegrees;
     private float targetTiltDegrees;
     private float tiltRetargetTimer;
+    private SimpleLanMultiplayer netManager;
 
     private void Awake()
     {
@@ -205,6 +206,21 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
+        // Send chat to network
+        if (netManager == null)
+        {
+#if UNITY_2023_1_OR_NEWER
+            netManager = FindAnyObjectByType<SimpleLanMultiplayer>();
+#else
+            netManager = FindObjectOfType<SimpleLanMultiplayer>();
+#endif
+        }
+
+        if (netManager != null)
+        {
+            netManager.SendChatMessage(textToSpeak);
+        }
+
         AudioClip clip = UnitySAMWrapper.GenerateClipFromText(textToSpeak);
         if (clip == null)
         {
@@ -225,7 +241,33 @@ public class PlayerMovement : MonoBehaviour
         ttsAudioSource.PlayOneShot(clip);
     }
 
-    private void UpdateHeadFromAudio()
+    private void OnEnable()
+    {
+        if (netManager == null)
+        {
+#if UNITY_2023_1_OR_NEWER
+            netManager = FindAnyObjectByType<SimpleLanMultiplayer>();
+#else
+            netManager = FindObjectOfType<SimpleLanMultiplayer>();
+#endif
+        }
+
+        if (netManager != null)
+        {
+            SimpleLanMultiplayer.ChatReceived += HandleRemoteChat;
+        }
+    }
+
+    private void OnDisable()
+    {
+        SimpleLanMultiplayer.ChatReceived -= HandleRemoteChat;
+    }
+
+    private void HandleRemoteChat(string sender, string message)
+    {
+        Debug.Log($"[CHAT] {sender}: {message}");
+    }
+
     {
         if (headTransform == null)
         {

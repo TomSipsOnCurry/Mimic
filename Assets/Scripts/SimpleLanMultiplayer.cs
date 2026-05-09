@@ -28,6 +28,10 @@ public class SimpleLanMultiplayer : MonoBehaviour
 
     public string Status { get; private set; } = "Disconnected";
     public string SessionCode => sessionCode;
+    public bool IsConnected => isConnected;
+
+    public delegate void OnChatReceived(string sender, string message);
+    public static event OnChatReceived ChatReceived;
 
     private const int HostPlayerId = 1;
 
@@ -63,6 +67,8 @@ public class SimpleLanMultiplayer : MonoBehaviour
         public float x;
         public float y;
         public string code;
+        public string text;
+        public string sender;
     }
 
     private sealed class RemotePlayer
@@ -125,6 +131,33 @@ public class SimpleLanMultiplayer : MonoBehaviour
     public void SetSessionCode(string code)
     {
         sessionCode = string.IsNullOrWhiteSpace(code) ? sessionCode : code.Trim();
+    }
+
+    public void SendChatMessage(string message)
+    {
+        if (!isConnected || string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        string sender = isHost ? "Host" : $"Player{localPlayerId}";
+        var chatMsg = new NetMessage
+        {
+            type = "CHAT",
+            id = localPlayerId,
+            text = message,
+            sender = sender
+        };
+
+        if (isHost)
+        {
+            BroadcastFromHost(chatMsg, null);
+            mainThreadActions.Enqueue(() => ChatReceived?.Invoke(sender, message));
+        }
+        else
+        {
+            SendToClient(chatMsg);
+        }
     }
 
     public void StartHost()
@@ -308,44 +341,51 @@ public class SimpleLanMultiplayer : MonoBehaviour
     {
         try
         {
-            discoverySocket = new UdpClient(discoveryPort);
+            // Listen on all interfaces on the discovery port
+            discoverySocket = new UdpClient(new IPEndPoint(IPAddress.Any, discoveryPort));
             discoverySocket.EnableBroadcast = true;
-            discoverySocket.Client.ReceiveTimeout = 5000;
+            discoverySocket.Client.ReceiveTimeout = 10000;
+
+            Debug.Log("SimpleLanMultiplayer: Listening for host beacon...");
 
             while (runDiscovery)
             {
-                IPEndPoint remote = new IPEndPoint(IPAddress.Any, 0);
-                byte[] data = discoverySocket.Receive(ref remote);
-                if (data == null || data.Length == 0)
+                try
                 {
-                    continue;
-                }
+                    IPEndPoint remote = new IPEndPoint(IPAddress.Any, 0);
+                    byte[] data = discoverySocket.Receive(ref remote);
+                    if (data == null || data.Length == 0)
+                    {
+                        continue;
+                    }
 
-                string msg = Encoding.UTF8.GetString(data);
-                // Format: MIMIC_HOST|<code>|<port>
-                string[] parts = msg.Split('|');
-                if (parts.Length < 3 || parts[0] != "MIMIC_HOST")
+                    string msg = Encoding.UTF8.GetString(data);
+                    Debug.Log($"SimpleLanMultiplayer: Received beacon: {msg}");
+                    
+                    // Format: MIMIC_HOST|<code>|<port>
+                    string[] parts = msg.Split('|');
+                    if (parts.Length < 3 || parts[0] != "MIMIC_HOST")
+                    {
+                        continue;
+                    }
+
+                    string code = parts[1];
+                    if (!string.Equals(code, sessionCode, StringComparison.Ordinal))
+                    {
+                        Debug.Log($"SimpleLanMultiplayer: Code mismatch (got {code}, expected {sessionCode})");
+                        continue;
+                    }
+
+                    string hostIp = remote.Address.ToString();
+                    Debug.Log($"SimpleLanMultiplayer: Found host at {hostIp}");
+                    runDiscovery = false;
+                    mainThreadActions.Enqueue(() => ConnectClient(hostIp));
+                    return;
+                }
+                catch (SocketException)
                 {
-                    continue;
+                    // Timeout is OK
                 }
-
-                string code = parts[1];
-                if (!string.Equals(code, sessionCode, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                string hostIp = remote.Address.ToString();
-                runDiscovery = false;
-                mainThreadActions.Enqueue(() => ConnectClient(hostIp));
-                return;
-            }
-        }
-        catch (SocketException)
-        {
-            if (runDiscovery)
-            {
-                mainThreadActions.Enqueue(() => Status = "No LAN host found" );
             }
         }
         catch (Exception exception)
@@ -387,19 +427,35 @@ public class SimpleLanMultiplayer : MonoBehaviour
         {
             hostBeaconSocket = new UdpClient();
             hostBeaconSocket.EnableBroadcast = true;
+            
+            // Broadcast to all IPs on local subnet (255.255.255.255) and also to multicast
             IPEndPoint broadcast = new IPEndPoint(IPAddress.Broadcast, discoveryPort);
 
+            int attempts = 0;
             while (runHostBeacon)
             {
                 string payload = $"MIMIC_HOST|{sessionCode}|{port}";
                 byte[] bytes = Encoding.UTF8.GetBytes(payload);
-                hostBeaconSocket.Send(bytes, bytes.Length, broadcast);
+                
+                try
+                {
+                    hostBeaconSocket.Send(bytes, bytes.Length, broadcast);
+                    if ((attempts++ % 10) == 0)
+                    {
+                        Debug.Log($"SimpleLanMultiplayer: Broadcasting beacon: {payload}");
+                    }
+                }
+                catch
+                {
+                    // ignore send errors
+                }
+                
                 Thread.Sleep(Mathf.Max(50, Mathf.RoundToInt(hostBeaconInterval * 1000f)));
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // ignore
+            Debug.LogWarning($"SimpleLanMultiplayer: Beacon thread error: {ex.Message}");
         }
         finally
         {
@@ -687,6 +743,19 @@ public class SimpleLanMultiplayer : MonoBehaviour
             Status = "Join rejected (wrong code)";
             Debug.LogError("SimpleLanMultiplayer: Join rejected (wrong code)." );
             StopSession();
+            return;
+        }
+
+        if (message.type == "CHAT")
+        {
+            mainThreadActions.Enqueue(() =>
+            {
+                ChatReceived?.Invoke(message.sender ?? "Unknown", message.text ?? "");
+                if (isHost)
+                {
+                    BroadcastFromHost(message, null);
+                }
+            });
             return;
         }
 
