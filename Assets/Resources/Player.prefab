@@ -79,7 +79,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 510
   m_MaskInteraction: 0
   m_Sprite: {fileID: 850604001, guid: 60fd1fe7c918b49baa27d4dea1e4ba97, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -177,7 +177,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 510
   m_MaskInteraction: 0
   m_Sprite: {fileID: -1356001248, guid: d222a3172ebb449acb4b4ccb3779e46e, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -401,7 +401,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 11
+  m_SortingOrder: 511
   m_MaskInteraction: 0
   m_Sprite: {fileID: -1560878246, guid: 60fd1fe7c918b49baa27d4dea1e4ba97, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -516,10 +516,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bf274762022464cc4bf713ac33457020, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerVision
-  viewRadius: 5
-  viewAngle: 360
+  viewRadius: 8.5
   rayCount: 360
-  faceMouseCursor: 1
+  shadowOpacity: 1
+  edgeFadeDistance: 2.25
+  cameraCoveragePadding: 3
+  shadowMaterial: {fileID: 0}
+  sortingOrder: 500
   obstacleMask:
     serializedVersion: 2
     m_Bits: 64
