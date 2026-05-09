@@ -32,6 +32,7 @@ public class RoomGridGenerator : MonoBehaviour
 
     private const int GridSize = 5;
     private const int MiddleSlot = 2;
+    private const string WallsLayerName = "Walls";
 
     [Header("Layout")]
     public Transform slotsRoot;
@@ -161,6 +162,7 @@ public class RoomGridGenerator : MonoBehaviour
                 Vector3 position = slot != null ? slot.position : GetSlotPosition(row, column);
                 GameObject room = Instantiate(prefab, position, Quaternion.identity, generatedRoomsRoot);
                 room.name = $"Room_{row}_{column}_{section}_{prefab.name}";
+                ApplyWallsLayer(room);
                 PrepareRoomTilemaps(room);
             }
         }
@@ -231,6 +233,28 @@ public class RoomGridGenerator : MonoBehaviour
         {
             tilemaps[i].CompressBounds();
             tilemaps[i].RefreshAllTiles();
+        }
+    }
+
+    private static void ApplyWallsLayer(GameObject room)
+    {
+        int wallsLayer = LayerMask.NameToLayer(WallsLayerName);
+        if (wallsLayer < 0)
+        {
+            Debug.LogWarning($"RoomGridGenerator: Layer '{WallsLayerName}' was not found.");
+            return;
+        }
+
+        UnityEngine.Tilemaps.Tilemap[] tilemaps = room.GetComponentsInChildren<UnityEngine.Tilemaps.Tilemap>(true);
+        for (int i = 0; i < tilemaps.Length; i++)
+        {
+            UnityEngine.Tilemaps.Tilemap tilemap = tilemaps[i];
+            if (tilemap.name.IndexOf("wall", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                continue;
+            }
+
+            tilemap.gameObject.layer = wallsLayer;
         }
     }
 
