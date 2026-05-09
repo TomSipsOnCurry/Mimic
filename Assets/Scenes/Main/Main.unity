@@ -647,9 +647,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 882515972}
-  - {fileID: 1230181810}
-  - {fileID: 1262847036}
-  - {fileID: 2103059434}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -938,7 +935,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1030788024
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -957,6 +954,8 @@ MonoBehaviour:
   chatInputField: {fileID: 882515973}
   chatUiRoot: {fileID: 882515971}
   headTransform: {fileID: 1567071606}
+  bodyRenderer: {fileID: 0}
+  headRenderer: {fileID: 0}
   talkingHeadMinY: 0.16
   talkingHeadMaxY: 0.19
   talkingHeadResponse: 20
@@ -964,6 +963,16 @@ MonoBehaviour:
   talkingTiltMaxDegrees: 8
   talkingTiltRetargetInterval: {x: 0.06, y: 0.14}
   talkingTiltResponse: 16
+  mouthTransform: {fileID: 0}
+  generatedMouthLocalPosition: {x: 0, y: -0.045, z: -0.01}
+  generatedMouthLocalScale: {x: 0.055, y: 0.006, z: 1}
+  mouthOpenScale: 5
+  mouthResponse: 24
+  speechTextWorldYOffset: 0.4
+  speechTextSize: {x: 280, y: 82}
+  speechTextFontSize: 28
+  speechTextFont: {fileID: 0}
+  speechTextFontResourcePath: Fonts & Materials/BoldPixels SDF
 --- !u!50 &1030788025
 Rigidbody2D:
   serializedVersion: 5
@@ -1063,7 +1072,6 @@ Transform:
   m_LocalScale: {x: 5, y: 5, z: 5}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1720400613}
   - {fileID: 1567071606}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1313,7 +1321,7 @@ RectTransform:
   m_LocalScale: {x: 0.7500019, y: 0.7500019, z: 0.7500019}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1230181810}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -1475,14 +1483,20 @@ MonoBehaviour:
 --- !u!1 &1720400612
 GameObject:
   m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1030788027}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1720400615}
+  - component: {fileID: 1720400614}
+  m_Layer: 0
+  m_Name: 
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
 --- !u!212 &1720400614
 SpriteRenderer:
   serializedVersion: 2
@@ -1542,12 +1556,29 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!4 &1720400615
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720400612}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
+  - {fileID: 1720400615}
   - {fileID: 519420032}
   - {fileID: 619394802}
-  - {fileID: 310150244880956312}
   - {fileID: 592365558}
   - {fileID: 1578572550}
+  - {fileID: 1030788027}
+  - {fileID: 1597712385}
