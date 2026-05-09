@@ -3,29 +3,33 @@ using System.Collections.Generic;
 
 public class PlayerVision : MonoBehaviour
 {
-    public float viewRadius = 8f;
+    public float viewRadius = 1f;
     public int rayCount = 360;
     public LayerMask obstacleMask;
 
     private Mesh mesh;
-    private Vector3[] vertices;
-    private int[] triangles;
 
     void Start()
     {
         mesh = new Mesh();
         GetComponent<MeshFilter>().mesh = mesh;
+
+        // Assign your wall layer here
+        obstacleMask = LayerMask.GetMask("Grid/Walls");
     }
 
     void LateUpdate()
     {
         GenerateVisionMesh();
+        Debug.Log("Vertices: " + mesh.vertexCount);
+        Debug.DrawLine(transform.position, transform.position + Vector3.right * 3, Color.red);
+
+
     }
 
     void GenerateVisionMesh()
     {
         List<Vector3> points = new List<Vector3>();
-
         float angleStep = 360f / rayCount;
 
         for (int i = 0; i < rayCount; i++)
@@ -48,8 +52,8 @@ public class PlayerVision : MonoBehaviour
     {
         int count = points.Count;
 
-        vertices = new Vector3[count + 1];
-        triangles = new int[count * 3];
+        Vector3[] vertices = new Vector3[count + 1];
+        int[] triangles = new int[count * 3];
 
         vertices[0] = Vector3.zero;
 
@@ -65,7 +69,6 @@ public class PlayerVision : MonoBehaviour
             }
         }
 
-        // last triangle
         triangles[(count - 1) * 3] = 0;
         triangles[(count - 1) * 3 + 1] = count;
         triangles[(count - 1) * 3 + 2] = 1;
