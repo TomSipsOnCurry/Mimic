@@ -175,8 +175,14 @@ public class RoomGridGenerator : MonoBehaviour
 
     public Vector3 GetSlotPosition(int row, int column)
     {
-        float x = (column - MiddleSlot) * roomSize.x * 2f;
-        float y = (MiddleSlot - row) * roomSize.y * 2f;
+        float roomGap = 10f;
+
+        float spacingX = roomSize.x + roomGap;
+        float spacingY = roomSize.y + roomGap;
+
+        float x = (column - MiddleSlot) * spacingX;
+        float y = (MiddleSlot - row) * spacingY;
+
         return transform.TransformPoint(new Vector3(x, y, 0f));
     }
 
