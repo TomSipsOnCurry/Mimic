@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Photon.Pun;
@@ -7,7 +8,6 @@ public class CollectibleSpawner : MonoBehaviour
 {
     [Header("Collectibles")]
     [SerializeField] private string collectiblePrefabName = "Collectible";
-    [SerializeField] private Sprite[] possibleSprites;
     [SerializeField] private int collectiblesPerPlayer = 2;
 
     [Header("Map")]
@@ -19,6 +19,13 @@ public class CollectibleSpawner : MonoBehaviour
 
     private void Start()
     {
+        StartCoroutine(SpawnAfterMapGenerates());
+    }
+
+    private IEnumerator SpawnAfterMapGenerates()
+    {
+        yield return null;
+
         if (roomGrid == null)
         {
 #if UNITY_2023_1_OR_NEWER
@@ -30,7 +37,7 @@ public class CollectibleSpawner : MonoBehaviour
 
         if (PhotonNetwork.InRoom && !PhotonNetwork.IsMasterClient)
         {
-            return;
+            yield break;
         }
 
         SpawnCollectibles();
@@ -38,13 +45,15 @@ public class CollectibleSpawner : MonoBehaviour
 
     private void SpawnCollectibles()
     {
+        collectedCounts.Clear();
+
         if (PhotonNetwork.InRoom)
         {
             Player[] players = PhotonNetwork.PlayerList;
 
-            for (int i = 0; i < players.Length; i++)
+            foreach (Player player in players)
             {
-                SpawnForActor(players[i].ActorNumber);
+                SpawnForActor(player.ActorNumber);
             }
         }
         else
@@ -57,18 +66,29 @@ public class CollectibleSpawner : MonoBehaviour
     {
         collectedCounts[actorNumber] = 0;
 
+        Debug.Log($"Spawning {collectiblesPerPlayer} collectibles for actor {actorNumber}");
+
         for (int i = 0; i < collectiblesPerPlayer; i++)
         {
             Vector3 spawnPosition = GetRandomMapPosition();
+            int spriteIndex = Random.Range(0, 1000);
 
             GameObject item;
 
             if (PhotonNetwork.InRoom)
             {
+                object[] spawnData =
+                {
+                    actorNumber,
+                    spriteIndex
+                };
+
                 item = PhotonNetwork.Instantiate(
                     collectiblePrefabName,
                     spawnPosition,
-                    Quaternion.identity
+                    Quaternion.identity,
+                    0,
+                    spawnData
                 );
             }
             else
@@ -82,17 +102,16 @@ public class CollectibleSpawner : MonoBehaviour
                 }
 
                 item = Instantiate(prefab, spawnPosition, Quaternion.identity);
-            }
 
-            CollectibleItem collectible = item.GetComponent<CollectibleItem>();
-
-            if (collectible != null)
-            {
-                Sprite sprite = GetRandomSprite();
-                collectible.Setup(actorNumber, sprite);
+                CollectibleItem collectible = item.GetComponent<CollectibleItem>();
+                if (collectible != null)
+                {
+                    collectible.SetupOffline(actorNumber, spriteIndex);
+                }
             }
 
             item.name = $"Collectible_Actor_{actorNumber}_{i + 1}";
+            Debug.Log($"Spawned {item.name} at {spawnPosition}");
         }
     }
 
@@ -112,6 +131,7 @@ public class CollectibleSpawner : MonoBehaviour
             Vector2 randomOffset = Random.insideUnitCircle * spawnRandomOffset;
 
             Vector3 position = roomCenter + new Vector3(randomOffset.x, randomOffset.y, 0f);
+            position.z = 0f;
 
             if (Vector2.Distance(position, roomGrid.GetPlayerSpawnPosition()) >= minimumDistanceFromPlayerSpawn)
             {
@@ -120,16 +140,6 @@ public class CollectibleSpawner : MonoBehaviour
         }
 
         return roomGrid.GetSlotPosition(2, 2);
-    }
-
-    private Sprite GetRandomSprite()
-    {
-        if (possibleSprites == null || possibleSprites.Length == 0)
-        {
-            return null;
-        }
-
-        return possibleSprites[Random.Range(0, possibleSprites.Length)];
     }
 
     public static void NotifyCollected(int actorNumber)

@@ -1,30 +1,54 @@
 using UnityEngine;
 using Photon.Pun;
 
-public class CollectibleItem : MonoBehaviour
+public class CollectibleItem : MonoBehaviourPun
 {
-    [SerializeField] private float collectDistance = 1.2f;
+    [Header("Collect")]
+    [SerializeField] private float collectDistance = 1.5f;
+
+    [Header("Sprites")]
+    [SerializeField] private Sprite[] possibleSprites;
+
+    [Header("Glow")]
     [SerializeField] private Color normalColor = Color.white;
     [SerializeField] private Color glowColor = Color.yellow;
     [SerializeField] private float glowPulseSpeed = 6f;
 
     private SpriteRenderer spriteRenderer;
-    private Transform nearbyLocalPlayer;
-    private int ownerActorNumber;
-
-    public int OwnerActorNumber => ownerActorNumber;
+    private Collider2D itemCollider;
+    private int ownerActorNumber = -1;
+    private bool collected;
 
     private void Awake()
     {
         spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        itemCollider = GetComponent<Collider2D>();
 
-        if (spriteRenderer != null)
-        {
-            spriteRenderer.color = normalColor;
-        }
+        ReadPhotonSpawnData();
+        ApplySpriteFromIndex();
+        ApplyLocalVisibility();
     }
 
-    public void Setup(int actorNumber, Sprite sprite)
+    private void ReadPhotonSpawnData()
+    {
+        if (PhotonNetwork.InRoom &&
+            photonView != null &&
+            photonView.InstantiationData != null &&
+            photonView.InstantiationData.Length >= 2)
+        {
+            ownerActorNumber = (int)photonView.InstantiationData[0];
+            int spriteIndex = (int)photonView.InstantiationData[1];
+            ApplySprite(spriteIndex);
+        }
+        else if (!PhotonNetwork.InRoom)
+        {
+            ownerActorNumber = 1;
+        }
+
+        Debug.Log($"{name} belongs to actor {ownerActorNumber}. Local actor is {(PhotonNetwork.LocalPlayer != null ? PhotonNetwork.LocalPlayer.ActorNumber : -1)}");
+    }
+
+    public void SetupOffline(int actorNumber, int spriteIndex)
     {
         ownerActorNumber = actorNumber;
 
@@ -33,25 +57,88 @@ public class CollectibleItem : MonoBehaviour
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
         }
 
-        if (spriteRenderer != null && sprite != null)
+        if (itemCollider == null)
         {
-            spriteRenderer.sprite = sprite;
+            itemCollider = GetComponent<Collider2D>();
+        }
+
+        ApplySprite(spriteIndex);
+        ApplyLocalVisibility();
+    }
+
+    private void ApplySpriteFromIndex()
+    {
+        if (PhotonNetwork.InRoom &&
+            photonView != null &&
+            photonView.InstantiationData != null &&
+            photonView.InstantiationData.Length >= 2)
+        {
+            int spriteIndex = (int)photonView.InstantiationData[1];
+            ApplySprite(spriteIndex);
+        }
+    }
+
+    private void ApplySprite(int spriteIndex)
+    {
+        if (spriteRenderer == null)
+        {
+            return;
+        }
+
+        if (possibleSprites == null || possibleSprites.Length == 0)
+        {
+            return;
+        }
+
+        int safeIndex = Mathf.Abs(spriteIndex) % possibleSprites.Length;
+        spriteRenderer.sprite = possibleSprites[safeIndex];
+    }
+
+    private void ApplyLocalVisibility()
+    {
+        bool visibleToMe = IsOwnedByLocalPlayer();
+
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.enabled = visibleToMe;
+            spriteRenderer.color = normalColor;
+        }
+
+        if (itemCollider != null)
+        {
+            itemCollider.enabled = visibleToMe;
+            itemCollider.isTrigger = true;
         }
     }
 
     private void Update()
     {
-        nearbyLocalPlayer = FindLocalPlayer();
+        if (collected)
+        {
+            return;
+        }
 
-        bool canCollect = nearbyLocalPlayer != null &&
-                          IsOwnedByLocalPlayer() &&
-                          Vector2.Distance(transform.position, nearbyLocalPlayer.position) <= collectDistance;
+        if (!IsOwnedByLocalPlayer())
+        {
+            return;
+        }
+
+        Transform localPlayer = FindLocalPlayer();
+
+        if (localPlayer == null)
+        {
+            UpdateGlow(false);
+            return;
+        }
+
+        float distance = Vector2.Distance(transform.position, localPlayer.position);
+        bool canCollect = distance <= collectDistance;
 
         UpdateGlow(canCollect);
 
         if (canCollect && Input.GetKeyDown(KeyCode.Space))
         {
-            Collect();
+            RequestCollect();
         }
     }
 
@@ -74,10 +161,8 @@ public class CollectibleItem : MonoBehaviour
         PlayerMovement[] players = FindObjectsOfType<PlayerMovement>();
 #endif
 
-        for (int i = 0; i < players.Length; i++)
+        foreach (PlayerMovement player in players)
         {
-            PlayerMovement player = players[i];
-
             if (player == null || !player.gameObject.activeInHierarchy)
             {
                 continue;
@@ -111,20 +196,41 @@ public class CollectibleItem : MonoBehaviour
         spriteRenderer.color = Color.Lerp(normalColor, glowColor, pulse);
     }
 
-    private void Collect()
+    private void RequestCollect()
     {
-        Debug.Log("Collected item for actor: " + ownerActorNumber);
+        if (collected)
+        {
+            return;
+        }
+
+        collected = true;
+
+        if (!PhotonNetwork.InRoom)
+        {
+            CollectibleSpawner.NotifyCollected(ownerActorNumber);
+            Destroy(gameObject);
+            return;
+        }
+
+        photonView.RPC(nameof(CollectOnMaster), RpcTarget.MasterClient, PhotonNetwork.LocalPlayer.ActorNumber);
+    }
+
+    [PunRPC]
+    private void CollectOnMaster(int requestingActorNumber)
+    {
+        if (!PhotonNetwork.IsMasterClient)
+        {
+            return;
+        }
+
+        if (requestingActorNumber != ownerActorNumber)
+        {
+            Debug.LogWarning($"Actor {requestingActorNumber} tried to collect actor {ownerActorNumber}'s item.");
+            return;
+        }
 
         CollectibleSpawner.NotifyCollected(ownerActorNumber);
-
-        if (PhotonNetwork.InRoom)
-        {
-            PhotonNetwork.Destroy(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        PhotonNetwork.Destroy(gameObject);
     }
 
     private void OnDrawGizmosSelected()
