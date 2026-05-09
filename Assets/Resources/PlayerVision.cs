@@ -20,6 +20,8 @@ public class PlayerVision : MonoBehaviour
     [Header("Rendering")]
     [SerializeField] private Material shadowMaterial;
     [SerializeField] private int sortingOrder = 500;
+    [SerializeField] private float wallRevealPadding = 0.35f;
+    [SerializeField] private float minimumHitDistance = 0.2f;
 
     [Header("Layer")]
     public LayerMask obstacleMask;
@@ -214,10 +216,29 @@ public class PlayerVision : MonoBehaviour
     private VisionRay CastVisionRay(Vector2 direction)
     {
         Vector2 origin = transform.position;
-        RaycastHit2D hit = Physics2D.Raycast(origin, direction, viewRadius, obstacleMask);
+
+        RaycastHit2D hit = Physics2D.Raycast(
+            origin,
+            direction,
+            viewRadius,
+            obstacleMask
+        );
+
         if (hit.collider != null)
         {
-            return new VisionRay(hit.distance, hit.distance);
+            float hitDistance = hit.distance;
+
+            // If the ray hits basically immediately, don't let it black out everything.
+            if (hitDistance < minimumHitDistance)
+            {
+                hitDistance = minimumHitDistance;
+            }
+
+            // Make the darkness start slightly after the wall hit.
+            // This lets you actually see the wall surface near you.
+            float shadowStart = Mathf.Min(hitDistance + wallRevealPadding, viewRadius);
+
+            return new VisionRay(shadowStart, shadowStart);
         }
 
         float fadeStartDistance = Mathf.Max(0f, viewRadius - edgeFadeDistance);
