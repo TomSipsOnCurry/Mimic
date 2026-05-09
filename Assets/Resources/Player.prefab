@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 158038737816856369}
   - component: {fileID: 2983554724123744321}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Body
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -105,7 +105,7 @@ GameObject:
   - component: {fileID: 6811720906488256298}
   - component: {fileID: 8738947661359983770}
   - component: {fileID: 4918352229843160110}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -332,7 +332,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4855823786338108860}
   - component: {fileID: 6094913889083434757}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Head
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -425,7 +425,7 @@ GameObject:
   - component: {fileID: 651133694555378683}
   - component: {fileID: 4314367088590630757}
   - component: {fileID: 8659236139666131022}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: VisionMask
   m_TagString: Untagged
   m_Icon: {fileID: 0}

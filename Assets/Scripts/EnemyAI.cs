@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.AI;
 using Photon.Pun;
 
 public class EnemyAI : MonoBehaviour
@@ -11,61 +12,96 @@ public class EnemyAI : MonoBehaviour
     }
 
     [Header("Movement")]
-    [SerializeField] private float wanderSpeed = 2f;
-    [SerializeField] private float fleeSpeed = 7f;
-    [SerializeField] private float chaseSpeed = 5.5f;
+    [SerializeField] private float wanderSpeed = 5f;
+    [SerializeField] private float fleeSpeed = 12f;
+    [SerializeField] private float chaseSpeed = 10f;
+    [SerializeField] private float acceleration = 100f;
 
     [Header("Detection")]
-    [SerializeField] private float playerDetectRadius = 10f;
-    [SerializeField] private float playerVisionRadius = 8f;
+    [SerializeField] private float playerDetectRadius = 15f;
+    [SerializeField] private float playerVisionRadius = 15f;
     [SerializeField] private LayerMask playerLayer;
     [SerializeField] private LayerMask wallLayer;
 
     [Header("Behaviour")]
     [SerializeField] private int sightingsBeforeAttack = 3;
-    [SerializeField] private float fleeDistance = 8f;
-    [SerializeField] private float fleeTime = 1.5f;
-    [SerializeField] private float wanderRetargetTime = 2f;
-    [SerializeField] private float wanderDistance = 5f;
+    [SerializeField] private float fleeDistance = 14f;
+    [SerializeField] private float wanderRadius = 25f;
+    [SerializeField] private float wanderRetargetTime = 3f;
 
     [Header("Kill")]
-    [SerializeField] private float killDistance = 0.6f;
+    [SerializeField] private float killDistance = 1f;
+
+    [Header("NavMesh")]
+    [SerializeField] private float navMeshSearchRadius = 30f;
+    [SerializeField] private float startDelay = 0.5f;
 
     private EnemyState state = EnemyState.Wander;
-    private Rigidbody2D rb;
+    private NavMeshAgent agent;
     private Transform targetPlayer;
-    private Vector3 moveTarget;
-    private float stateTimer;
+    private float timer;
     private int sightingCount;
+    private bool navReady;
 
     private void Awake()
     {
-        rb = GetComponent<Rigidbody2D>();
+        agent = GetComponent<NavMeshAgent>();
 
-        if (rb != null)
+        if (agent == null)
         {
-            rb.bodyType = RigidbodyType2D.Kinematic;
-            rb.gravityScale = 0f;
-            rb.freezeRotation = true;
+            agent = gameObject.AddComponent<NavMeshAgent>();
         }
 
-        Collider2D col = GetComponent<Collider2D>();
-        if (col != null)
+        agent.updateRotation = false;
+        agent.updateUpAxis = false;
+        agent.speed = wanderSpeed;
+        agent.acceleration = acceleration;
+        agent.angularSpeed = 0f;
+        agent.stoppingDistance = 0.15f;
+        agent.autoBraking = false;
+
+        SpriteRenderer sr = GetComponentInChildren<SpriteRenderer>();
+        if (sr != null)
         {
-            col.isTrigger = true;
+            sr.sortingOrder = 100;
+            sr.enabled = true;
         }
     }
 
     private void Start()
     {
-        PickRandomWanderTarget();
+        Invoke(nameof(InitialiseAfterNavMeshBuild), startDelay);
+    }
+
+    private void InitialiseAfterNavMeshBuild()
+    {
+        navReady = TryPlaceOnNavMesh();
+
+        if (!navReady)
+        {
+            Debug.LogError("EnemyAI: Enemy could not be placed on NavMesh. Check NavMeshSurface baking.");
+            return;
+        }
+
+        PickRandomWanderPoint();
     }
 
     private void Update()
     {
-        // Only host/master controls the enemy in multiplayer
         if (PhotonNetwork.InRoom && !PhotonNetwork.IsMasterClient)
         {
+            return;
+        }
+
+        if (!navReady)
+        {
+            navReady = TryPlaceOnNavMesh();
+            return;
+        }
+
+        if (!IsAgentReady())
+        {
+            navReady = false;
             return;
         }
 
@@ -83,7 +119,8 @@ public class EnemyAI : MonoBehaviour
             else
             {
                 targetPlayer = seeingPlayer;
-                StartFleeingFrom(seeingPlayer);
+                state = EnemyState.Flee;
+                FleeFrom(seeingPlayer);
             }
         }
 
@@ -105,26 +142,23 @@ public class EnemyAI : MonoBehaviour
 
     private void UpdateWander()
     {
-        stateTimer -= Time.deltaTime;
+        agent.speed = wanderSpeed;
+        timer -= Time.deltaTime;
 
-        MoveTowards(moveTarget, wanderSpeed);
-
-        if (Vector2.Distance(transform.position, moveTarget) < 0.3f || stateTimer <= 0f)
+        if ((!agent.pathPending && agent.remainingDistance <= 0.5f) || timer <= 0f)
         {
-            PickRandomWanderTarget();
+            PickRandomWanderPoint();
         }
     }
 
     private void UpdateFlee()
     {
-        stateTimer -= Time.deltaTime;
+        agent.speed = fleeSpeed;
 
-        MoveTowards(moveTarget, fleeSpeed);
-
-        if (stateTimer <= 0f || Vector2.Distance(transform.position, moveTarget) < 0.3f)
+        if (!agent.pathPending && agent.remainingDistance <= 0.5f)
         {
             state = EnemyState.Wander;
-            PickRandomWanderTarget();
+            PickRandomWanderPoint();
         }
     }
 
@@ -133,11 +167,16 @@ public class EnemyAI : MonoBehaviour
         if (targetPlayer == null)
         {
             state = EnemyState.Wander;
-            PickRandomWanderTarget();
+            PickRandomWanderPoint();
             return;
         }
 
-        MoveTowards(targetPlayer.position, chaseSpeed);
+        agent.speed = chaseSpeed;
+
+        if (TryGetNavMeshPoint(targetPlayer.position, out Vector3 targetPosition))
+        {
+            agent.SetDestination(targetPosition);
+        }
 
         float distance = Vector2.Distance(transform.position, targetPlayer.position);
 
@@ -189,11 +228,27 @@ public class EnemyAI : MonoBehaviour
         return null;
     }
 
-    private void StartFleeingFrom(Transform player)
+    private void PickRandomWanderPoint()
     {
-        state = EnemyState.Flee;
-        stateTimer = fleeTime;
+        timer = wanderRetargetTime;
 
+        for (int i = 0; i < 30; i++)
+        {
+            Vector2 randomCircle = Random.insideUnitCircle * wanderRadius;
+            Vector3 randomPoint = transform.position + new Vector3(randomCircle.x, randomCircle.y, 0f);
+
+            if (TryGetNavMeshPoint(randomPoint, out Vector3 navPoint))
+            {
+                agent.SetDestination(navPoint);
+                return;
+            }
+        }
+
+        Debug.LogWarning("EnemyAI: Could not find random NavMesh wander point.");
+    }
+
+    private void FleeFrom(Transform player)
+    {
         Vector3 awayDirection = transform.position - player.position;
 
         if (awayDirection.sqrMagnitude < 0.01f)
@@ -206,40 +261,62 @@ public class EnemyAI : MonoBehaviour
             awayDirection.Normalize();
         }
 
-        moveTarget = transform.position + awayDirection * fleeDistance;
-    }
+        Vector3 desiredFleePoint = transform.position + awayDirection * fleeDistance;
 
-    private void PickRandomWanderTarget()
-    {
-        stateTimer = wanderRetargetTime;
-
-        Vector2 randomOffset = Random.insideUnitCircle * wanderDistance;
-        moveTarget = transform.position + new Vector3(randomOffset.x, randomOffset.y, 0f);
-    }
-
-    private void MoveTowards(Vector3 destination, float speed)
-    {
-        Vector3 nextPosition = Vector3.MoveTowards(
-            transform.position,
-            destination,
-            speed * Time.deltaTime
-        );
-
-        if (rb != null)
+        if (TryGetNavMeshPoint(desiredFleePoint, out Vector3 navPoint))
         {
-            rb.MovePosition(nextPosition);
+            agent.speed = fleeSpeed;
+            agent.SetDestination(navPoint);
         }
         else
         {
-            transform.position = nextPosition;
+            PickRandomWanderPoint();
         }
+    }
+
+    private bool IsAgentReady()
+    {
+        return agent != null && agent.enabled && agent.isOnNavMesh;
+    }
+
+    private bool TryPlaceOnNavMesh()
+    {
+        if (agent == null)
+        {
+            return false;
+        }
+
+        if (agent.isOnNavMesh)
+        {
+            return true;
+        }
+
+        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, navMeshSearchRadius, NavMesh.AllAreas))
+        {
+            agent.Warp(hit.position);
+            transform.position = hit.position;
+            Debug.Log("EnemyAI: Placed enemy on NavMesh at " + hit.position);
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryGetNavMeshPoint(Vector3 position, out Vector3 navPoint)
+    {
+        if (NavMesh.SamplePosition(position, out NavMeshHit hit, navMeshSearchRadius, NavMesh.AllAreas))
+        {
+            navPoint = hit.position;
+            return true;
+        }
+
+        navPoint = position;
+        return false;
     }
 
     private void KillPlayer(Transform player)
     {
         Debug.Log("Enemy killed player: " + player.name);
-
-        // Temporary kill behaviour
         player.gameObject.SetActive(false);
     }
 
@@ -250,5 +327,8 @@ public class EnemyAI : MonoBehaviour
 
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, playerVisionRadius);
+
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(transform.position, wanderRadius);
     }
 }

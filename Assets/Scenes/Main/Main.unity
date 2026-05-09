@@ -488,6 +488,70 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 119002723}
   m_CullTransparentMesh: 1
+--- !u!1 &120390837
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 120390838}
+  - component: {fileID: 120390839}
+  m_Layer: 0
+  m_Name: Navigation
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &120390838
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 120390837}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 742671680}
+  m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
+--- !u!114 &120390839
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 120390837}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a5ac11cc976e418e8d13136b07e1f52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshSurface
+  m_SerializedVersion: 0
+  m_AgentTypeID: 0
+  m_CollectObjects: 0
+  m_Size: {x: 10, y: 10, z: 10}
+  m_Center: {x: 0, y: 2, z: 0}
+  m_LayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_UseGeometry: 1
+  m_DefaultArea: 0
+  m_GenerateLinks: 0
+  m_IgnoreNavMeshAgent: 1
+  m_IgnoreNavMeshObstacle: 1
+  m_OverrideTileSize: 0
+  m_TileSize: 256
+  m_OverrideVoxelSize: 0
+  m_VoxelSize: 0.16666667
+  m_MinRegionArea: 2
+  m_NavMeshData: {fileID: 23800000, guid: 64c821e2930c449b6a5e9832c8159425, type: 2}
+  m_BuildHeightMesh: 0
 --- !u!224 &220520305 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 786356516575755565, guid: 3e8e81561001043ffaeb71a868fe865d, type: 3}
@@ -1242,6 +1306,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 92fa68e4b5ab440dd855a812f8eecc78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoomGridGenerator
+  enemyPrefabName: Enemy
+  navMeshSurface: {fileID: 0}
   slotsRoot: {fileID: 0}
   generatedRoomsRoot: {fileID: 995944832}
   roomSize: {x: 21, y: 20}
@@ -1272,12 +1338,15 @@ MonoBehaviour:
   - section: 4
     folderPath: Assets/Scenes/DIFFENT ROOMS/Middle Middle
     prefabs:
+    - {fileID: 5021872398709527666, guid: 04cbda5afe461b14b91d39e08848160f, type: 3}
+    - {fileID: 7150007246996707508, guid: 5cf12a3ee6fd6cc4e9440aa9c5fd9377, type: 3}
     - {fileID: 6065784299124478845, guid: ff34f298e362cd449ac26c90e6cc6b47, type: 3}
     - {fileID: 7710180696464942311, guid: 6eea033b5ff450a40947183c6f4647de, type: 3}
     - {fileID: 5782920624531680085, guid: 7226f2f307039bc4a9beab701653b860, type: 3}
   - section: 5
     folderPath: Assets/Scenes/DIFFENT ROOMS/Middle Right
     prefabs:
+    - {fileID: 8856764514796815069, guid: e7ede511c46e8be4eab80d3bc49a8737, type: 3}
     - {fileID: 1843680426873113411, guid: f16c185b640c0ea4f9432d3894175901, type: 3}
   - section: 6
     folderPath: Assets/Scenes/DIFFENT ROOMS/Bottom Left
@@ -1307,6 +1376,7 @@ Transform:
   m_Children:
   - {fileID: 995944832}
   - {fileID: 43540741}
+  - {fileID: 120390838}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!156049354 &742671681

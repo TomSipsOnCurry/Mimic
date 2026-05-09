@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.AI.Navigation;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -35,6 +36,7 @@ public class RoomGridGenerator : MonoBehaviour
     private const string WallsLayerName = "Walls";
 
     [SerializeField] private string enemyPrefabName = "Enemy";
+    [SerializeField] private NavMeshSurface navMeshSurface;
 
     [Header("Layout")]
     public Transform slotsRoot;
@@ -59,6 +61,18 @@ public class RoomGridGenerator : MonoBehaviour
         if (generateOnStart)
         {
             GenerateRooms();
+
+            if (navMeshSurface != null)
+            {
+                navMeshSurface.BuildNavMesh();
+                Debug.Log("NavMesh built after room generation.");
+            }
+            else
+            {
+                Debug.LogError("NavMeshSurface is not assigned on RoomGridGenerator.");
+            }
+
+            SpawnEnemy();
         }
     }
 
@@ -110,7 +124,7 @@ public class RoomGridGenerator : MonoBehaviour
             return;
         }
 
-        Vector3 spawnPosition = GetSlotPosition(4, 4);
+        Vector3 spawnPosition = GetSlotPosition(2, 2);
 
         if (Photon.Pun.PhotonNetwork.InRoom)
         {
@@ -199,8 +213,6 @@ public class RoomGridGenerator : MonoBehaviour
                 PrepareRoomTilemaps(room);
             }
         }
-
-        SpawnEnemy();
 
         if (randomSeed != 0)
         {
