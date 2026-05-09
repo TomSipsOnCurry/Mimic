@@ -497,6 +497,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 120390838}
+  - component: {fileID: 120390840}
   - component: {fileID: 120390839}
   m_Layer: 0
   m_Name: Navigation
@@ -513,13 +514,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 120390837}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalRotation: {x: -0.7071068, y: -0, z: -0, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 742671680}
-  m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &120390839
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -529,10 +530,25 @@ MonoBehaviour:
   m_GameObject: {fileID: 120390837}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7a5ac11cc976e418e8d13136b07e1f52, type: 3}
+  m_Script: {fileID: 11500000, guid: 70bd44a44cd62c64fbfc1eea95b24880, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshSurface
-  m_SerializedVersion: 0
+  m_EditorClassIdentifier: NavMeshPlus::NavMeshPlus.Extensions.CollectSources2d
+  m_OverrideByGrid: 0
+  m_UseMeshPrefab: {fileID: 530285433}
+  m_CompressBounds: 0
+  m_OverrideVector: {x: 1, y: 1, z: 1}
+--- !u!114 &120390840
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 120390837}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e04976799df50f54ba128eff723155a7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NavMeshPlus::NavMeshPlus.Components.NavMeshSurface
   m_AgentTypeID: 0
   m_CollectObjects: 0
   m_Size: {x: 10, y: 10, z: 10}
@@ -542,16 +558,16 @@ MonoBehaviour:
     m_Bits: 4294967295
   m_UseGeometry: 1
   m_DefaultArea: 0
-  m_GenerateLinks: 0
   m_IgnoreNavMeshAgent: 1
   m_IgnoreNavMeshObstacle: 1
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.16666667
-  m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: 64c821e2930c449b6a5e9832c8159425, type: 2}
   m_BuildHeightMesh: 0
+  m_MinRegionArea: 0
+  m_HideEditorLogs: 0
+  m_NavMeshData: {fileID: 0}
 --- !u!224 &220520305 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 786356516575755565, guid: 3e8e81561001043ffaeb71a868fe865d, type: 3}
@@ -987,6 +1003,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 390abc163ec0a4a4e94189b19c6d4cfd, type: 3}
+--- !u!1 &530285433 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4943904284523651755, guid: 390abc163ec0a4a4e94189b19c6d4cfd, type: 3}
+  m_PrefabInstance: {fileID: 530285432}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &548024061 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4848360377583462595, guid: dfd1b24f63b8f470cbe7fcad93c856d2, type: 3}
@@ -1307,7 +1328,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoomGridGenerator
   enemyPrefabName: Enemy
-  navMeshSurface: {fileID: 0}
+  navigationObject: {fileID: 120390837}
   slotsRoot: {fileID: 0}
   generatedRoomsRoot: {fileID: 995944832}
   roomSize: {x: 21, y: 20}

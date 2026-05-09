@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Unity.AI.Navigation;
+using UnityEngine.AI;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -36,7 +36,7 @@ public class RoomGridGenerator : MonoBehaviour
     private const string WallsLayerName = "Walls";
 
     [SerializeField] private string enemyPrefabName = "Enemy";
-    [SerializeField] private NavMeshSurface navMeshSurface;
+    [SerializeField] private GameObject navigationObject;
 
     [Header("Layout")]
     public Transform slotsRoot;
@@ -58,22 +58,42 @@ public class RoomGridGenerator : MonoBehaviour
 
     private void Start()
     {
-        if (generateOnStart)
+        if (!generateOnStart)
         {
-            GenerateRooms();
-
-            if (navMeshSurface != null)
-            {
-                navMeshSurface.BuildNavMesh();
-                Debug.Log("NavMesh built after room generation.");
-            }
-            else
-            {
-                Debug.LogError("NavMeshSurface is not assigned on RoomGridGenerator.");
-            }
-
-            SpawnEnemy();
+            return;
         }
+
+        GenerateRooms();
+
+        if (navigationObject == null)
+        {
+            GameObject found = GameObject.Find("Navigation");
+
+            if (found != null)
+            {
+                navigationObject = found;
+            }
+        }
+
+        if (navigationObject == null)
+        {
+            Debug.LogError("Navigation object is not assigned/found. Enemy will not spawn.");
+            return;
+        }
+
+        navigationObject.SendMessage("BuildNavMesh", SendMessageOptions.DontRequireReceiver);
+        Debug.Log("Tried to build NavMeshPlus surface after room generation.");
+
+        NavMeshTriangulation triangulation = NavMesh.CalculateTriangulation();
+        Debug.Log("NavMesh vertices: " + triangulation.vertices.Length);
+
+        if (triangulation.vertices.Length == 0)
+        {
+            Debug.LogError("NavMesh has 0 vertices. Enemy will not spawn.");
+            return;
+        }
+
+        SpawnEnemy();
     }
 
 #if UNITY_EDITOR
