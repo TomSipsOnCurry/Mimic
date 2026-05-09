@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-//using UnityEngine.AI;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -36,7 +35,6 @@ public class RoomGridGenerator : MonoBehaviour
     private const string WallsLayerName = "Walls";
 
     [SerializeField] private string enemyPrefabName = "Enemy";
-    //[SerializeField] private GameObject navigationObject;
 
     [Header("Layout")]
     public Transform slotsRoot;
@@ -49,7 +47,14 @@ public class RoomGridGenerator : MonoBehaviour
     [Header("Rooms")]
     public RoomPrefabFolder[] roomFolders = Array.Empty<RoomPrefabFolder>();
 
+    [Header("Fixed Spawn Room")]
+    [SerializeField] private GameObject fixedTopMiddleRoomPrefab;
+    [SerializeField] private Vector3 playerSpawnLocalOffset = Vector3.zero;
+
     private readonly Dictionary<RoomSection, GameObject[]> runtimePrefabCache = new Dictionary<RoomSection, GameObject[]>();
+
+    private Vector3 cachedPlayerSpawnPosition;
+    private bool hasCachedPlayerSpawnPosition;
 
     private void Awake()
     {
@@ -64,38 +69,6 @@ public class RoomGridGenerator : MonoBehaviour
         }
 
         GenerateRooms();
-
-        /***
-        if (navigationObject == null)
-        {
-            GameObject found = GameObject.Find("Navigation");
-
-            if (found != null)
-            {
-                navigationObject = found;
-            }
-        }
-
-        if (navigationObject == null)
-        {
-            Debug.LogError("Navigation object is not assigned/found. Enemy will not spawn.");
-            return;
-        }
-
-        navigationObject.SendMessage("BuildNavMesh", SendMessageOptions.DontRequireReceiver);
-        Debug.Log("Tried to build NavMeshPlus surface after room generation.");
-
-        NavMeshTriangulation triangulation = NavMesh.CalculateTriangulation();
-        Debug.Log("NavMesh vertices: " + triangulation.vertices.Length);
-
-        if (triangulation.vertices.Length == 0)
-        {
-            Debug.LogError("NavMesh has 0 vertices. Enemy will not spawn.");
-            return;
-        }
-
-        SpawnEnemy();
-        **/
     }
 
 #if UNITY_EDITOR
@@ -109,12 +82,14 @@ public class RoomGridGenerator : MonoBehaviour
         for (int i = 0; i < roomFolders.Length; i++)
         {
             RoomPrefabFolder folder = roomFolders[i];
+
             if (folder == null || string.IsNullOrWhiteSpace(folder.folderPath))
             {
                 continue;
             }
 
             GameObject[] prefabs = LoadPrefabsFromFolder(folder);
+
             if (!HaveSamePrefabs(folder.prefabs, prefabs))
             {
                 folder.prefabs = prefabs;
@@ -126,6 +101,7 @@ public class RoomGridGenerator : MonoBehaviour
     private void EnsureGridLayout()
     {
         Grid grid = GetComponent<Grid>();
+
         if (grid == null)
         {
             return;
@@ -135,37 +111,6 @@ public class RoomGridGenerator : MonoBehaviour
         grid.cellGap = Vector3.zero;
         grid.cellLayout = GridLayout.CellLayout.Rectangle;
         grid.cellSwizzle = GridLayout.CellSwizzle.XYZ;
-    }
-
-    private void SpawnEnemy()
-    {
-        // Only host/master spawns enemy
-        if (Photon.Pun.PhotonNetwork.InRoom &&
-            !Photon.Pun.PhotonNetwork.IsMasterClient)
-        {
-            return;
-        }
-
-        Vector3 spawnPosition = GetSlotPosition(2, 2);
-
-        if (Photon.Pun.PhotonNetwork.InRoom)
-        {
-            Photon.Pun.PhotonNetwork.Instantiate(
-                enemyPrefabName,
-                spawnPosition,
-                Quaternion.identity
-            );
-        }
-        else
-        {
-            GameObject enemyPrefab =
-                Resources.Load<GameObject>(enemyPrefabName);
-
-            if (enemyPrefab != null)
-            {
-                Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
-            }
-        }
     }
 
     public static bool TryGetPlayerSpawnPosition(out Vector3 position)
@@ -179,6 +124,7 @@ public class RoomGridGenerator : MonoBehaviour
         for (int i = 0; i < generators.Length; i++)
         {
             RoomGridGenerator generator = generators[i];
+
             if (generator == null || !generator.gameObject.scene.IsValid())
             {
                 continue;
@@ -194,8 +140,16 @@ public class RoomGridGenerator : MonoBehaviour
 
     public Vector3 GetPlayerSpawnPosition()
     {
-        Transform slot = GetSlotTransform(MiddleSlot, GridSize - 1);
-        return slot != null ? slot.position : GetSlotPosition(MiddleSlot, GridSize - 1);
+        if (hasCachedPlayerSpawnPosition)
+        {
+            return cachedPlayerSpawnPosition;
+        }
+
+        // Fallback: top middle room centre
+        Transform slot = GetSlotTransform(0, MiddleSlot);
+        Vector3 topMiddlePosition = slot != null ? slot.position : GetSlotPosition(0, MiddleSlot);
+
+        return topMiddlePosition + playerSpawnLocalOffset;
     }
 
     public void GenerateRooms()
@@ -208,8 +162,11 @@ public class RoomGridGenerator : MonoBehaviour
         }
 
         runtimePrefabCache.Clear();
+        hasCachedPlayerSpawnPosition = false;
+        cachedPlayerSpawnPosition = Vector3.zero;
 
         UnityEngine.Random.State previousRandomState = UnityEngine.Random.state;
+
         if (randomSeed != 0)
         {
             UnityEngine.Random.InitState(randomSeed);
@@ -220,19 +177,27 @@ public class RoomGridGenerator : MonoBehaviour
             for (int column = 0; column < GridSize; column++)
             {
                 RoomSection section = GetSection(row, column);
-                GameObject prefab = GetRandomPrefab(section);
+                GameObject prefab = GetPrefabForSlot(row, column, section);
+
                 if (prefab == null)
                 {
-                    Debug.LogWarning($"RoomGridGenerator: No prefab found for {section}.");
+                    Debug.LogWarning($"RoomGridGenerator: No prefab found for {section} at row {row}, column {column}.");
                     continue;
                 }
 
                 Transform slot = GetSlotTransform(row, column);
                 Vector3 position = slot != null ? slot.position : GetSlotPosition(row, column);
+
                 GameObject room = Instantiate(prefab, position, Quaternion.identity, generatedRoomsRoot);
                 room.name = $"Room_{row}_{column}_{section}_{prefab.name}";
+
                 ApplyWallsLayer(room);
                 PrepareRoomTilemaps(room);
+
+                if (row == 0 && column == MiddleSlot)
+                {
+                    CachePlayerSpawnPosition(room, position);
+                }
             }
         }
 
@@ -240,6 +205,36 @@ public class RoomGridGenerator : MonoBehaviour
         {
             UnityEngine.Random.state = previousRandomState;
         }
+    }
+
+    private GameObject GetPrefabForSlot(int row, int column, RoomSection section)
+    {
+        bool isTopMiddle = row == 0 && column == MiddleSlot;
+
+        if (isTopMiddle && fixedTopMiddleRoomPrefab != null)
+        {
+            return fixedTopMiddleRoomPrefab;
+        }
+
+        return GetRandomPrefab(section);
+    }
+
+    private void CachePlayerSpawnPosition(GameObject room, Vector3 roomPosition)
+    {
+        Transform spawnPoint = room.transform.Find("PlayerSpawn");
+
+        if (spawnPoint != null)
+        {
+            cachedPlayerSpawnPosition = spawnPoint.position;
+        }
+        else
+        {
+            cachedPlayerSpawnPosition = roomPosition + playerSpawnLocalOffset;
+        }
+
+        hasCachedPlayerSpawnPosition = true;
+
+        Debug.Log("Player spawn position set to: " + cachedPlayerSpawnPosition);
     }
 
     public Vector3 GetSlotPosition(int row, int column)
@@ -270,6 +265,7 @@ public class RoomGridGenerator : MonoBehaviour
         if (bottom) return RoomSection.BottomMiddle;
         if (left) return RoomSection.MiddleLeft;
         if (right) return RoomSection.MiddleRight;
+
         return RoomSection.MiddleMiddle;
     }
 
@@ -282,6 +278,7 @@ public class RoomGridGenerator : MonoBehaviour
 
         string slotName = GetSlotName(row, column);
         Transform slot = slotsRoot.Find(slotName);
+
         return slot != null ? slot : null;
     }
 
@@ -293,6 +290,7 @@ public class RoomGridGenerator : MonoBehaviour
     private GameObject GetRandomPrefab(RoomSection section)
     {
         GameObject[] candidates = GetPrefabs(section);
+
         if (candidates == null || candidates.Length == 0)
         {
             return null;
@@ -304,6 +302,7 @@ public class RoomGridGenerator : MonoBehaviour
     private static void PrepareRoomTilemaps(GameObject room)
     {
         UnityEngine.Tilemaps.Tilemap[] tilemaps = room.GetComponentsInChildren<UnityEngine.Tilemaps.Tilemap>(true);
+
         for (int i = 0; i < tilemaps.Length; i++)
         {
             tilemaps[i].CompressBounds();
@@ -314,6 +313,7 @@ public class RoomGridGenerator : MonoBehaviour
     private static void ApplyWallsLayer(GameObject room)
     {
         int wallsLayer = LayerMask.NameToLayer(WallsLayerName);
+
         if (wallsLayer < 0)
         {
             Debug.LogWarning($"RoomGridGenerator: Layer '{WallsLayerName}' was not found.");
@@ -321,9 +321,11 @@ public class RoomGridGenerator : MonoBehaviour
         }
 
         UnityEngine.Tilemaps.Tilemap[] tilemaps = room.GetComponentsInChildren<UnityEngine.Tilemaps.Tilemap>(true);
+
         for (int i = 0; i < tilemaps.Length; i++)
         {
             UnityEngine.Tilemaps.Tilemap tilemap = tilemaps[i];
+
             if (tilemap.name.IndexOf("wall", StringComparison.OrdinalIgnoreCase) < 0)
             {
                 continue;
@@ -342,7 +344,9 @@ public class RoomGridGenerator : MonoBehaviour
 
         RoomPrefabFolder folder = GetFolder(section);
         GameObject[] prefabs = LoadPrefabsFromFolder(folder);
+
         runtimePrefabCache[section] = prefabs;
+
         return prefabs;
     }
 
@@ -351,6 +355,7 @@ public class RoomGridGenerator : MonoBehaviour
         for (int i = 0; i < roomFolders.Length; i++)
         {
             RoomPrefabFolder folder = roomFolders[i];
+
             if (folder != null && folder.section == section)
             {
                 return folder;
@@ -372,10 +377,12 @@ public class RoomGridGenerator : MonoBehaviour
         {
             string[] guids = AssetDatabase.FindAssets("t:Prefab", new[] { folder.folderPath });
             List<GameObject> editorPrefabs = new List<GameObject>(guids.Length);
+
             for (int i = 0; i < guids.Length; i++)
             {
                 string path = AssetDatabase.GUIDToAssetPath(guids[i]);
                 GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+
                 if (prefab != null)
                 {
                     editorPrefabs.Add(prefab);
@@ -396,6 +403,7 @@ public class RoomGridGenerator : MonoBehaviour
     {
         int aLength = a != null ? a.Length : 0;
         int bLength = b != null ? b.Length : 0;
+
         if (aLength != bLength)
         {
             return false;
@@ -434,6 +442,7 @@ public class RoomGridGenerator : MonoBehaviour
         for (int i = generatedRoomsRoot.childCount - 1; i >= 0; i--)
         {
             Transform child = generatedRoomsRoot.GetChild(i);
+
             if (Application.isPlaying)
             {
                 Destroy(child.gameObject);
@@ -448,6 +457,7 @@ public class RoomGridGenerator : MonoBehaviour
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.cyan;
+
         for (int row = 0; row < GridSize; row++)
         {
             for (int column = 0; column < GridSize; column++)

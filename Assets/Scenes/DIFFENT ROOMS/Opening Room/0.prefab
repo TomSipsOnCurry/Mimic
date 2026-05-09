@@ -2690,7 +2690,7 @@ GameObject:
   - component: {fileID: 8513037174357729959}
   - component: {fileID: 811567226344044879}
   m_Layer: 6
-  m_Name: OPening Room
+  m_Name: 0
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

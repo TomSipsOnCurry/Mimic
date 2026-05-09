@@ -523,6 +523,8 @@ MonoBehaviour:
   cameraCoveragePadding: 3
   shadowMaterial: {fileID: 0}
   sortingOrder: 500
+  wallRevealPadding: 0.35
+  minimumHitDistance: 0.2
   obstacleMask:
     serializedVersion: 2
     m_Bits: 64
