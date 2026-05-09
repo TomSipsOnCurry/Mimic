@@ -2,6 +2,9 @@ using UnityEngine;
 
 public class PlayerAvatar : MonoBehaviour
 {
+    private const string LocalPlayerLayerName = "Player";
+    private const string RemotePlayerLayerName = "Default";
+
     [SerializeField] private PlayerMovement playerMovement;
     [SerializeField] private MouseLook mouseLook;
     [SerializeField] private Camera playerCamera;
@@ -53,6 +56,7 @@ public class PlayerAvatar : MonoBehaviour
         PlayerId = playerId;
         IsLocalPlayer = isLocalPlayer;
         ResetRemoteTarget();
+        ConfigureLayers();
 
         if (mouseLook != null)
         {
@@ -133,5 +137,44 @@ public class PlayerAvatar : MonoBehaviour
         targetPosition = transform.position;
         targetRotation = transform.rotation;
         hasRemoteTarget = !IsLocalPlayer;
+    }
+
+    private void ConfigureLayers()
+    {
+        int localPlayerLayer = LayerMask.NameToLayer(LocalPlayerLayerName);
+        int remotePlayerLayer = LayerMask.NameToLayer(RemotePlayerLayerName);
+
+        if (localPlayerLayer < 0)
+        {
+            Debug.LogWarning($"Layer '{LocalPlayerLayerName}' does not exist. Local avatar will remain visible.");
+            return;
+        }
+
+        if (IsLocalPlayer)
+        {
+            SetLayerRecursively(transform, localPlayerLayer);
+
+            if (playerCamera != null)
+            {
+                playerCamera.cullingMask &= ~(1 << localPlayerLayer);
+            }
+
+            return;
+        }
+
+        if (remotePlayerLayer >= 0)
+        {
+            SetLayerRecursively(transform, remotePlayerLayer);
+        }
+    }
+
+    private static void SetLayerRecursively(Transform root, int layer)
+    {
+        root.gameObject.layer = layer;
+
+        for (int childIndex = 0; childIndex < root.childCount; childIndex++)
+        {
+            SetLayerRecursively(root.GetChild(childIndex), layer);
+        }
     }
 }
