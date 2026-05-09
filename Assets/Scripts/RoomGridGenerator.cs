@@ -34,12 +34,10 @@ public class RoomGridGenerator : MonoBehaviour
     private const int MiddleSlot = 2;
     private const string WallsLayerName = "Walls";
 
-    [SerializeField] private string enemyPrefabName = "Enemy";
-
     [Header("Layout")]
     public Transform slotsRoot;
     public Transform generatedRoomsRoot;
-    public Vector2 roomSize = new Vector2(21f, 20f);
+    public Vector2 roomSize = new Vector2(21f, 21f);
     public bool generateOnStart = true;
     public bool clearGeneratedRooms = true;
     public int randomSeed;
@@ -47,14 +45,10 @@ public class RoomGridGenerator : MonoBehaviour
     [Header("Rooms")]
     public RoomPrefabFolder[] roomFolders = Array.Empty<RoomPrefabFolder>();
 
-    [Header("Fixed Spawn Room")]
-    [SerializeField] private GameObject fixedTopMiddleRoomPrefab;
+    [Header("Player Spawn")]
     [SerializeField] private Vector3 playerSpawnLocalOffset = Vector3.zero;
 
     private readonly Dictionary<RoomSection, GameObject[]> runtimePrefabCache = new Dictionary<RoomSection, GameObject[]>();
-
-    private Vector3 cachedPlayerSpawnPosition;
-    private bool hasCachedPlayerSpawnPosition;
 
     private void Awake()
     {
@@ -63,12 +57,10 @@ public class RoomGridGenerator : MonoBehaviour
 
     private void Start()
     {
-        if (!generateOnStart)
+        if (generateOnStart)
         {
-            return;
+            GenerateRooms();
         }
-
-        GenerateRooms();
     }
 
 #if UNITY_EDITOR
@@ -116,7 +108,10 @@ public class RoomGridGenerator : MonoBehaviour
     public static bool TryGetPlayerSpawnPosition(out Vector3 position)
     {
 #if UNITY_2023_1_OR_NEWER
-        RoomGridGenerator[] generators = FindObjectsByType<RoomGridGenerator>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        RoomGridGenerator[] generators = FindObjectsByType<RoomGridGenerator>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None
+        );
 #else
         RoomGridGenerator[] generators = FindObjectsOfType<RoomGridGenerator>(true);
 #endif
@@ -140,12 +135,8 @@ public class RoomGridGenerator : MonoBehaviour
 
     public Vector3 GetPlayerSpawnPosition()
     {
-        if (hasCachedPlayerSpawnPosition)
-        {
-            return cachedPlayerSpawnPosition;
-        }
-
-        // Fallback: top middle room centre
+        // row 0 = top row
+        // column 2 = middle column
         Transform slot = GetSlotTransform(0, MiddleSlot);
         Vector3 topMiddlePosition = slot != null ? slot.position : GetSlotPosition(0, MiddleSlot);
 
@@ -162,8 +153,6 @@ public class RoomGridGenerator : MonoBehaviour
         }
 
         runtimePrefabCache.Clear();
-        hasCachedPlayerSpawnPosition = false;
-        cachedPlayerSpawnPosition = Vector3.zero;
 
         UnityEngine.Random.State previousRandomState = UnityEngine.Random.state;
 
@@ -177,7 +166,7 @@ public class RoomGridGenerator : MonoBehaviour
             for (int column = 0; column < GridSize; column++)
             {
                 RoomSection section = GetSection(row, column);
-                GameObject prefab = GetPrefabForSlot(row, column, section);
+                GameObject prefab = GetRandomPrefab(section);
 
                 if (prefab == null)
                 {
@@ -193,11 +182,6 @@ public class RoomGridGenerator : MonoBehaviour
 
                 ApplyWallsLayer(room);
                 PrepareRoomTilemaps(room);
-
-                if (row == 0 && column == MiddleSlot)
-                {
-                    CachePlayerSpawnPosition(room, position);
-                }
             }
         }
 
@@ -205,36 +189,6 @@ public class RoomGridGenerator : MonoBehaviour
         {
             UnityEngine.Random.state = previousRandomState;
         }
-    }
-
-    private GameObject GetPrefabForSlot(int row, int column, RoomSection section)
-    {
-        bool isTopMiddle = row == 0 && column == MiddleSlot;
-
-        if (isTopMiddle && fixedTopMiddleRoomPrefab != null)
-        {
-            return fixedTopMiddleRoomPrefab;
-        }
-
-        return GetRandomPrefab(section);
-    }
-
-    private void CachePlayerSpawnPosition(GameObject room, Vector3 roomPosition)
-    {
-        Transform spawnPoint = room.transform.Find("PlayerSpawn");
-
-        if (spawnPoint != null)
-        {
-            cachedPlayerSpawnPosition = spawnPoint.position;
-        }
-        else
-        {
-            cachedPlayerSpawnPosition = roomPosition + playerSpawnLocalOffset;
-        }
-
-        hasCachedPlayerSpawnPosition = true;
-
-        Debug.Log("Player spawn position set to: " + cachedPlayerSpawnPosition);
     }
 
     public Vector3 GetSlotPosition(int row, int column)
@@ -260,9 +214,11 @@ public class RoomGridGenerator : MonoBehaviour
         if (top && left) return RoomSection.TopLeft;
         if (top && right) return RoomSection.TopRight;
         if (top) return RoomSection.TopMiddle;
+
         if (bottom && left) return RoomSection.BottomLeft;
         if (bottom && right) return RoomSection.BottomRight;
         if (bottom) return RoomSection.BottomMiddle;
+
         if (left) return RoomSection.MiddleLeft;
         if (right) return RoomSection.MiddleRight;
 
@@ -297,42 +253,6 @@ public class RoomGridGenerator : MonoBehaviour
         }
 
         return candidates[UnityEngine.Random.Range(0, candidates.Length)];
-    }
-
-    private static void PrepareRoomTilemaps(GameObject room)
-    {
-        UnityEngine.Tilemaps.Tilemap[] tilemaps = room.GetComponentsInChildren<UnityEngine.Tilemaps.Tilemap>(true);
-
-        for (int i = 0; i < tilemaps.Length; i++)
-        {
-            tilemaps[i].CompressBounds();
-            tilemaps[i].RefreshAllTiles();
-        }
-    }
-
-    private static void ApplyWallsLayer(GameObject room)
-    {
-        int wallsLayer = LayerMask.NameToLayer(WallsLayerName);
-
-        if (wallsLayer < 0)
-        {
-            Debug.LogWarning($"RoomGridGenerator: Layer '{WallsLayerName}' was not found.");
-            return;
-        }
-
-        UnityEngine.Tilemaps.Tilemap[] tilemaps = room.GetComponentsInChildren<UnityEngine.Tilemaps.Tilemap>(true);
-
-        for (int i = 0; i < tilemaps.Length; i++)
-        {
-            UnityEngine.Tilemaps.Tilemap tilemap = tilemaps[i];
-
-            if (tilemap.name.IndexOf("wall", StringComparison.OrdinalIgnoreCase) < 0)
-            {
-                continue;
-            }
-
-            tilemap.gameObject.layer = wallsLayer;
-        }
     }
 
     private GameObject[] GetPrefabs(RoomSection section)
@@ -418,6 +338,42 @@ public class RoomGridGenerator : MonoBehaviour
         }
 
         return true;
+    }
+
+    private static void PrepareRoomTilemaps(GameObject room)
+    {
+        UnityEngine.Tilemaps.Tilemap[] tilemaps = room.GetComponentsInChildren<UnityEngine.Tilemaps.Tilemap>(true);
+
+        for (int i = 0; i < tilemaps.Length; i++)
+        {
+            tilemaps[i].CompressBounds();
+            tilemaps[i].RefreshAllTiles();
+        }
+    }
+
+    private static void ApplyWallsLayer(GameObject room)
+    {
+        int wallsLayer = LayerMask.NameToLayer(WallsLayerName);
+
+        if (wallsLayer < 0)
+        {
+            Debug.LogWarning($"RoomGridGenerator: Layer '{WallsLayerName}' was not found.");
+            return;
+        }
+
+        UnityEngine.Tilemaps.Tilemap[] tilemaps = room.GetComponentsInChildren<UnityEngine.Tilemaps.Tilemap>(true);
+
+        for (int i = 0; i < tilemaps.Length; i++)
+        {
+            UnityEngine.Tilemaps.Tilemap tilemap = tilemaps[i];
+
+            if (tilemap.name.IndexOf("wall", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                continue;
+            }
+
+            tilemap.gameObject.layer = wallsLayer;
+        }
     }
 
     private void EnsureGeneratedRoomsRoot()

@@ -1328,7 +1328,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 92fa68e4b5ab440dd855a812f8eecc78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoomGridGenerator
-  enemyPrefabName: Enemy
   slotsRoot: {fileID: 0}
   generatedRoomsRoot: {fileID: 995944832}
   roomSize: {x: 21, y: 20}
@@ -1383,8 +1382,7 @@ MonoBehaviour:
     prefabs:
     - {fileID: 5042141483247130827, guid: fd5dd6d655aa03149a1bfe98ac5fb792, type: 3}
     - {fileID: 2013292885865776019, guid: d95de9a101f90ae4a875c471e870405b, type: 3}
-  fixedTopMiddleRoomPrefab: {fileID: 7277434779762579772, guid: 5480a90027fdc1146922ad2939ab880a, type: 3}
-  playerSpawnLocalOffset: {x: 0, y: -10, z: 0}
+  playerSpawnLocalOffset: {x: 0, y: 0, z: 0}
 --- !u!4 &742671680
 Transform:
   m_ObjectHideFlags: 0
@@ -2175,6 +2173,8 @@ MonoBehaviour:
   cameraCoveragePadding: 3
   shadowMaterial: {fileID: 0}
   sortingOrder: 500
+  wallRevealPadding: 0.35
+  minimumHitDistance: 0.2
   obstacleMask:
     serializedVersion: 2
     m_Bits: 64

@@ -143,6 +143,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Collect
   collectDistance: 5
+  possibleSprites: []
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   glowColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   glowPulseSpeed: 6
