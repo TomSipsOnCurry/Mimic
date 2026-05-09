@@ -1308,6 +1308,7 @@ GameObject:
   - component: {fileID: 742671680}
   - component: {fileID: 742671679}
   - component: {fileID: 742671681}
+  - component: {fileID: 742671682}
   m_Layer: 0
   m_Name: Room Grid
   m_TagString: Untagged
@@ -1328,7 +1329,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoomGridGenerator
   enemyPrefabName: Enemy
-  navigationObject: {fileID: 120390837}
   slotsRoot: {fileID: 0}
   generatedRoomsRoot: {fileID: 995944832}
   roomSize: {x: 21, y: 20}
@@ -1412,6 +1412,32 @@ Grid:
   m_CellGap: {x: 0, y: 0, z: 0}
   m_CellLayout: 0
   m_CellSwizzle: 0
+--- !u!114 &742671682
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 742671678}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5354887b671345ddb2a939f1379fd69, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CollectibleSpawner
+  collectiblePrefabName: Collectible
+  possibleSprites:
+  - {fileID: 582650308, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: -1969160543, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: 705941979, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: 509758829, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: -1054298079, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: -96747708, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: 1776632620, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: 962879899, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  collectiblesPerPlayer: 2
+  roomGrid: {fileID: 742671679}
+  spawnRandomOffset: 6
+  minimumDistanceFromPlayerSpawn: 8
 --- !u!1 &882515971
 GameObject:
   m_ObjectHideFlags: 0
