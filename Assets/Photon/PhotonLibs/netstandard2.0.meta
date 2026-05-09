@@ -1,5 +1,9 @@
 fileFormatVersion: 2
+<<<<<<<< HEAD:Assets/Photon/PhotonLibs/netstandard2.0.meta
 guid: beb9d2a25c882b54ab2fd9adaec2b53c
+========
+guid: 98951132346795f438babe7a3183da43
+>>>>>>>> Devram-intro:Assets/Photon.meta
 folderAsset: yes
 DefaultImporter:
   externalObjects: {}
