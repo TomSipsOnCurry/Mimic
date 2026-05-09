@@ -268,6 +268,7 @@ public class PlayerMovement : MonoBehaviour
         Debug.Log($"[CHAT] {sender}: {message}");
     }
 
+    private void UpdateHeadFromAudio()
     {
         if (headTransform == null)
         {
