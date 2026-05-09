@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
+//using UnityEngine.AI;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -36,7 +36,7 @@ public class RoomGridGenerator : MonoBehaviour
     private const string WallsLayerName = "Walls";
 
     [SerializeField] private string enemyPrefabName = "Enemy";
-    [SerializeField] private GameObject navigationObject;
+    //[SerializeField] private GameObject navigationObject;
 
     [Header("Layout")]
     public Transform slotsRoot;
@@ -65,6 +65,7 @@ public class RoomGridGenerator : MonoBehaviour
 
         GenerateRooms();
 
+        /***
         if (navigationObject == null)
         {
             GameObject found = GameObject.Find("Navigation");
@@ -94,6 +95,7 @@ public class RoomGridGenerator : MonoBehaviour
         }
 
         SpawnEnemy();
+        **/
     }
 
 #if UNITY_EDITOR
