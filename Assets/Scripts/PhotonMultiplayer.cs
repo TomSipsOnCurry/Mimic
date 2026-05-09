@@ -278,6 +278,7 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
             PlayerMovement existingPlayer = localPlayerObject.GetComponent<PlayerMovement>();
             if (existingPlayer != null)
             {
+                existingPlayer.transform.position = GetPlayerSpawnPosition();
                 existingPlayer.SetPlayerVariantForActor(PhotonNetwork.LocalPlayer.ActorNumber);
             }
 
@@ -288,6 +289,7 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
         if (TryFindLocalNetworkPlayer(out PlayerMovement foundPlayer))
         {
             localPlayerObject = foundPlayer.gameObject;
+            foundPlayer.transform.position = GetPlayerSpawnPosition();
             foundPlayer.SetPlayerVariantForActor(PhotonNetwork.LocalPlayer.ActorNumber);
             RemoveExtraLocalPlayers(localPlayerObject);
             return;
@@ -297,7 +299,7 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
 
         GameObject playerObject = PhotonNetwork.Instantiate(
             "Player",
-            Vector3.zero,
+            GetPlayerSpawnPosition(),
             Quaternion.identity
         );
 
@@ -309,6 +311,13 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
 
         localPlayerObject = playerObject;
         RemoveExtraLocalPlayers(localPlayerObject);
+    }
+
+    private static Vector3 GetPlayerSpawnPosition()
+    {
+        return RoomGridGenerator.TryGetPlayerSpawnPosition(out Vector3 position)
+            ? position
+            : Vector3.zero;
     }
 
     public override void OnLeftRoom()
