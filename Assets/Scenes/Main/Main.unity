@@ -1381,10 +1381,7 @@ MonoBehaviour:
   - section: 8
     folderPath: Assets/Scenes/DIFFENT ROOMS/Bottom Right
     prefabs:
-    - {fileID: 5042141483247130827, guid: fd5dd6d655aa03149a1bfe98ac5fb792, type: 3}
     - {fileID: 2013292885865776019, guid: d95de9a101f90ae4a875c471e870405b, type: 3}
-  fixedTopMiddleRoomPrefab: {fileID: 7277434779762579772, guid: 5480a90027fdc1146922ad2939ab880a, type: 3}
-  playerSpawnLocalOffset: {x: 0, y: -10, z: 0}
 --- !u!4 &742671680
 Transform:
   m_ObjectHideFlags: 0
@@ -1428,6 +1425,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CollectibleSpawner
   collectiblePrefabName: Collectible
+  possibleSprites:
+  - {fileID: 582650308, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: -1969160543, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: 705941979, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: 509758829, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: -1054298079, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: -96747708, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: 1776632620, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
+  - {fileID: 962879899, guid: c0a12b363f87447f88a9449705f23bad, type: 3}
   collectiblesPerPlayer: 2
   roomGrid: {fileID: 742671679}
   spawnRandomOffset: 6
