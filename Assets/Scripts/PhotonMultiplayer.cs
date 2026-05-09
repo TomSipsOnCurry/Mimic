@@ -8,6 +8,7 @@ using ExitGames.Client.Photon;
 public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
 {
     private const byte ChatEventCode = 1;
+    private const string SoloCode = "SOLO";
 
     [SerializeField] private string roomCode = "1234";
     [SerializeField] private int maxPlayersPerRoom = 8;
@@ -17,8 +18,8 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
     public string Status { get; private set; } = "Disconnected";
     public bool IsConnected => PhotonNetwork.InRoom;
     public string SessionCode => roomCode;
-    public int MinPlayersToStart => minPlayersToStart;
-    public bool CanStartGame => PhotonNetwork.InRoom && PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom != null && PhotonNetwork.CurrentRoom.PlayerCount >= minPlayersToStart;
+    public int MinPlayersToStart => soloMode ? 1 : minPlayersToStart;
+    public bool CanStartGame => PhotonNetwork.InRoom && PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom != null && PhotonNetwork.CurrentRoom.PlayerCount >= MinPlayersToStart;
     public Player[] Players => PhotonNetwork.InRoom ? PhotonNetwork.PlayerList : new Player[0];
 
     public delegate void OnChatReceived(string sender, string message);
@@ -29,6 +30,7 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
     public static event Action RoomStateChanged;
 
     private string lastRoomCode;
+    private bool soloMode;
     private static PhotonMultiplayer instance;
     private static GameObject localPlayerObject;
 
@@ -96,11 +98,19 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
 
     public void SetSessionCode(string code)
     {
-        roomCode = string.IsNullOrWhiteSpace(code) ? roomCode : code.Trim();
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return;
+        }
+
+        string trimmedCode = code.Trim();
+        roomCode = IsSoloCode(trimmedCode) ? SoloCode : trimmedCode;
     }
 
     public void StartHost()
     {
+        soloMode = false;
+
         if (!PhotonNetwork.IsConnectedAndReady)
         {
             Status = "Connecting to Photon...";
@@ -124,6 +134,14 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
 
     public void StartClient(string address = "")
     {
+        if (IsSoloCode(roomCode))
+        {
+            StartSolo();
+            return;
+        }
+
+        soloMode = false;
+
         if (!PhotonNetwork.IsConnectedAndReady)
         {
             Status = "Connecting to Photon...";
@@ -144,8 +162,40 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
         PhotonNetwork.JoinRoom(roomCode);
     }
 
+    public void StartSolo()
+    {
+        soloMode = true;
+        roomCode = SoloCode;
+        lastRoomCode = SoloCode;
+
+        if (!PhotonNetwork.IsConnectedAndReady)
+        {
+            Status = "Connecting to Photon...";
+            if (!PhotonNetwork.IsConnected)
+            {
+                PhotonNetwork.ConnectUsingSettings();
+            }
+
+            RoomStateChanged?.Invoke();
+            return;
+        }
+
+        Status = "Creating solo room...";
+        RoomStateChanged?.Invoke();
+
+        RoomOptions roomOpts = new RoomOptions
+        {
+            MaxPlayers = 1,
+            IsVisible = false,
+            IsOpen = true
+        };
+
+        PhotonNetwork.CreateRoom(GenerateSoloRoomName(), roomOpts, TypedLobby.Default);
+    }
+
     public void StopSession()
     {
+        soloMode = false;
         Status = "Disconnected";
         localPlayerObject = null;
         PhotonNetwork.LeaveRoom();
@@ -194,6 +244,7 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
 
     public override void OnDisconnected(DisconnectCause cause)
     {
+        soloMode = false;
         Status = $"Disconnected ({cause})";
         localPlayerObject = null;
         Debug.LogWarning($"PhotonMultiplayer: Disconnected. Reason: {cause}");
@@ -262,6 +313,7 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
 
     public override void OnLeftRoom()
     {
+        soloMode = false;
         localPlayerObject = null;
         Status = "Connected to Photon";
         RoomStateChanged?.Invoke();
@@ -362,6 +414,28 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
     public override void OnCreateRoomFailed(short returnCode, string message)
     {
         Debug.LogWarning($"PhotonMultiplayer: Create failed. {message}");
+        if (soloMode)
+        {
+            if (returnCode == ErrorCode.GameIdAlreadyExists)
+            {
+                Status = "Creating solo room...";
+                RoomOptions soloRoomOpts = new RoomOptions
+                {
+                    MaxPlayers = 1,
+                    IsVisible = false,
+                    IsOpen = true
+                };
+                PhotonNetwork.CreateRoom(GenerateSoloRoomName(), soloRoomOpts, TypedLobby.Default);
+                RoomStateChanged?.Invoke();
+                return;
+            }
+
+            soloMode = false;
+            Status = "Failed to create solo room";
+            RoomStateChanged?.Invoke();
+            return;
+        }
+
         if (returnCode != ErrorCode.GameIdAlreadyExists)
         {
             Status = "Failed to create room";
@@ -380,6 +454,16 @@ public class PhotonMultiplayer : MonoBehaviourPunCallbacks, IOnEventCallback
     private static string GenerateRoomCode()
     {
         return UnityEngine.Random.Range(1000, 10000).ToString();
+    }
+
+    private static string GenerateSoloRoomName()
+    {
+        return $"{SoloCode}-{Guid.NewGuid():N}";
+    }
+
+    public static bool IsSoloCode(string code)
+    {
+        return string.Equals(code?.Trim(), SoloCode, StringComparison.OrdinalIgnoreCase);
     }
 
     public override void OnPlayerEnteredRoom(Player newPlayer)

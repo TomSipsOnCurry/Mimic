@@ -107,8 +107,22 @@ public class MainMenuMultiplayerLobby : MonoBehaviour
             return;
         }
 
-        net.SetSessionCode(codeInput != null ? codeInput.text : string.Empty);
-        net.StartClient();
+        string enteredCode = codeInput != null ? codeInput.text : string.Empty;
+        if (PhotonMultiplayer.IsSoloCode(enteredCode))
+        {
+            if (codeInput != null)
+            {
+                codeInput.text = "SOLO";
+            }
+
+            net.StartSolo();
+        }
+        else
+        {
+            net.SetSessionCode(enteredCode);
+            net.StartClient();
+        }
+
         Refresh();
     }
 
@@ -387,7 +401,8 @@ public class MainMenuMultiplayerLobby : MonoBehaviour
         input.textComponent = text;
         input.placeholder = placeholder;
         input.characterLimit = 4;
-        input.characterValidation = TMP_InputField.CharacterValidation.Integer;
+        input.contentType = TMP_InputField.ContentType.Standard;
+        input.characterValidation = TMP_InputField.CharacterValidation.None;
         input.text = string.Empty;
         return input;
     }
