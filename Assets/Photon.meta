@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+<<<<<<< Updated upstream
+guid: 98951132346795f438babe7a3183da43
+folderAsset: yes
+DefaultImporter:
+=======
+<<<<<<<< Updated upstream:Assets/Scenes/rooms.unity.meta
+guid: a808dfbb92c801e4b86e6942b98008d8
+========
+guid: 98951132346795f438babe7a3183da43
+folderAsset: yes
+>>>>>>>> Stashed changes:Assets/Photon.meta
+DefaultImporter:
+  externalObjects: {}
+>>>>>>> Stashed changes
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

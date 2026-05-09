@@ -182,6 +182,7 @@ public class SimpleLanMultiplayer : MonoBehaviour
         isHost = true;
         isConnected = true;
         localPlayerId = HostPlayerId;
+        localPlayer.SetPlayerVariant(localPlayerId);
         Status = $"Hosting :{port} (Code {sessionCode})";
         nextPlayerId = HostPlayerId + 1;
         knownPositions[localPlayerId] = localPlayer.transform.position;
@@ -762,6 +763,11 @@ public class SimpleLanMultiplayer : MonoBehaviour
         if (message.type == "HELLO")
         {
             localPlayerId = message.id;
+            if (localPlayer != null)
+            {
+                localPlayer.SetPlayerVariant(localPlayerId);
+            }
+
             Status = $"Connected (id {localPlayerId})";
             return;
         }
@@ -876,6 +882,7 @@ public class SimpleLanMultiplayer : MonoBehaviour
         PlayerMovement movement = remoteObject.GetComponent<PlayerMovement>();
         if (movement != null)
         {
+            movement.SetPlayerVariant(id);
             Destroy(movement);
         }
 
@@ -885,13 +892,6 @@ public class SimpleLanMultiplayer : MonoBehaviour
             remoteBody.linearVelocity = Vector2.zero;
             remoteBody.angularVelocity = 0f;
             remoteBody.bodyType = RigidbodyType2D.Kinematic;
-        }
-
-        SpriteRenderer sprite = remoteObject.GetComponent<SpriteRenderer>();
-        if (sprite != null)
-        {
-            float hue = Mathf.Repeat(id * 0.173f, 1f);
-            sprite.color = Color.HSVToRGB(hue, 0.45f, 1f);
         }
 
         remotePlayers[id] = new RemotePlayer
