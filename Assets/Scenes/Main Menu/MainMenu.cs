@@ -5,10 +5,16 @@ public class MenuManager : MonoBehaviour
 {
     public GameObject mainMenu;
     public GameObject settingsMenu;
+    public GameObject playMenu;
 
     public void PlayGame()
     {
-        SceneManager.LoadScene("Main"); // or index
+        playMenu.SetActive(true);
+    }
+
+    public void BackGame()
+    {
+        playMenu.SetActive(false);
     }
 
     public void QuitGame()
