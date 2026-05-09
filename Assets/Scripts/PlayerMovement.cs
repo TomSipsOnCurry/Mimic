@@ -2,6 +2,7 @@ using UnityEngine;
 using TMPro;
 using Photon.Pun;
 
+
 public class PlayerMovement : MonoBehaviour, IPunObservable
 {
     private const int PlayerVariantCount = 4;
@@ -16,7 +17,6 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
 
     public Rigidbody2D body;
     public float speed = 6f;
-    public AudioSource ttsAudioSource;
     [SerializeField] private TMP_InputField chatInputField;
     [SerializeField] private GameObject chatUiRoot;
     [SerializeField] private Transform headTransform;
@@ -63,6 +63,14 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
     private static Sprite[] cachedHeadSprites;
     private static PlayerMovement localPhotonPlayer;
 
+    [Header("TTS Audio")]
+    [SerializeField] private AudioSource ttsAudioSource;
+
+    [Header("Movement Audio")]
+    [SerializeField] private AudioSource movementAudioSource;
+    [SerializeField] private AudioClip trolleyMoveClip;
+    [SerializeField] private float movementSoundMinInput = 0.1f;
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStaticState()
     {
@@ -70,50 +78,104 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
     }
 
     private void Awake()
+{
+    photonView = GetComponent<PhotonView>();
+
+    if (DestroyIfDuplicateLocalPhotonPlayer())
     {
-        photonView = GetComponent<PhotonView>();
-        if (DestroyIfDuplicateLocalPhotonPlayer())
-        {
-            return;
-        }
+        return;
+    }
 
-        networkTargetPosition = transform.position;
+    networkTargetPosition = transform.position;
 
-        if (body == null)
+    if (body == null)
+    {
+        body = GetComponent<Rigidbody2D>();
+    }
+
+    // -----------------------------
+    // TTS AUDIO SOURCE
+    // This is ONLY for generated speech.
+    // The lid/head/mouth animation should read from this source only.
+    // -----------------------------
+    if (ttsAudioSource == null)
+    {
+        Transform existingTts = transform.Find("TTS Audio Source");
+
+        if (existingTts != null)
         {
-            body = GetComponent<Rigidbody2D>();
+            ttsAudioSource = existingTts.GetComponent<AudioSource>();
         }
 
         if (ttsAudioSource == null)
         {
-            ttsAudioSource = GetComponent<AudioSource>();
-        }
-
-        ResolveChatUiReferences();
-
-        if (headTransform == null)
-        {
-            Transform foundHead = transform.Find("Head");
-            if (foundHead != null)
-            {
-                headTransform = foundHead;
-            }
-        }
-
-        if (headTransform != null)
-        {
-            baseHeadLocalEuler = headTransform.localEulerAngles;
-        }
-
-        ResolvePlayerVariantRenderers();
-        ResolveMouthTransform();
-        RefreshPlayerVariantFromIdentity();
-
-        if (IsLocalPlayer())
-        {
-            SetChatUiVisible(false);
+            GameObject ttsObject = new GameObject("TTS Audio Source");
+            ttsObject.transform.SetParent(transform, false);
+            ttsAudioSource = ttsObject.AddComponent<AudioSource>();
         }
     }
+
+    ttsAudioSource.playOnAwake = false;
+    ttsAudioSource.loop = false;
+    ttsAudioSource.spatialBlend = 0f;
+
+    // -----------------------------
+    // MOVEMENT AUDIO SOURCE
+    // This is ONLY for trolley/movement loop.
+    // Do NOT use this for lid/head animation.
+    // -----------------------------
+    if (movementAudioSource == null)
+    {
+        Transform existingMovement = transform.Find("Movement Audio Source");
+
+        if (existingMovement != null)
+        {
+            movementAudioSource = existingMovement.GetComponent<AudioSource>();
+        }
+
+        if (movementAudioSource == null)
+        {
+            GameObject movementObject = new GameObject("Movement Audio Source");
+            movementObject.transform.SetParent(transform, false);
+            movementAudioSource = movementObject.AddComponent<AudioSource>();
+        }
+    }
+
+    movementAudioSource.playOnAwake = false;
+    movementAudioSource.loop = true;
+    movementAudioSource.spatialBlend = 0f;
+
+    if (trolleyMoveClip != null)
+    {
+        movementAudioSource.clip = trolleyMoveClip;
+    }
+
+    ResolveChatUiReferences();
+
+    if (headTransform == null)
+    {
+        Transform foundHead = transform.Find("Head");
+
+        if (foundHead != null)
+        {
+            headTransform = foundHead;
+        }
+    }
+
+    if (headTransform != null)
+    {
+        baseHeadLocalEuler = headTransform.localEulerAngles;
+    }
+
+    ResolvePlayerVariantRenderers();
+    ResolveMouthTransform();
+    RefreshPlayerVariantFromIdentity();
+
+    if (IsLocalPlayer())
+    {
+        SetChatUiVisible(false);
+    }
+}
 
     private void Start()
     {
@@ -153,6 +215,37 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
         // Local player: handle input
         HandleTypingInput();
         moveInput = isChatOpen ? Vector2.zero : GetMoveInput().normalized;
+        UpdateMovementAudio();
+    }
+
+    private void UpdateMovementAudio()
+    {
+        if (!IsLocalPlayer())
+        {
+            return;
+        }
+
+        if (movementAudioSource == null || trolleyMoveClip == null)
+        {
+            return;
+        }
+
+        bool isMoving = moveInput.magnitude > movementSoundMinInput;
+
+        if (isMoving)
+        {
+            if (!movementAudioSource.isPlaying)
+            {
+                movementAudioSource.Play();
+            }
+        }
+        else
+        {
+            if (movementAudioSource.isPlaying)
+            {
+                movementAudioSource.Stop();
+            }
+        }
     }
 
     private void FixedUpdate()
@@ -646,6 +739,7 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
     private void PlaySpeech(string textToSpeak)
     {
         AudioClip clip = UnitySAMWrapper.GenerateClipFromText(textToSpeak);
+
         if (clip == null)
         {
             Debug.LogError("PlayerMovement: UnitySAMWrapper failed to generate audio clip.");
@@ -655,12 +749,9 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
 
         if (ttsAudioSource == null)
         {
-            ttsAudioSource = GetComponent<AudioSource>();
-        }
-
-        if (ttsAudioSource == null)
-        {
-            ttsAudioSource = gameObject.AddComponent<AudioSource>();
+            GameObject ttsObject = new GameObject("TTS Audio Source");
+            ttsObject.transform.SetParent(transform, false);
+            ttsAudioSource = ttsObject.AddComponent<AudioSource>();
         }
 
         ttsAudioSource.PlayOneShot(clip);

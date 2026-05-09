@@ -14,6 +14,10 @@ public class CollectibleItem : MonoBehaviourPun
     [SerializeField] private Color glowColor = Color.yellow;
     [SerializeField] private float glowPulseSpeed = 6f;
 
+    [Header("Audio")]
+    [SerializeField] private AudioClip collectSound;
+    [SerializeField] private float destroyDelayAfterCollect = 0.25f;
+
     private SpriteRenderer spriteRenderer;
     private Collider2D itemCollider;
     private int ownerActorNumber = -1;
@@ -208,11 +212,28 @@ public class CollectibleItem : MonoBehaviourPun
         if (!PhotonNetwork.InRoom)
         {
             CollectibleSpawner.NotifyCollected(ownerActorNumber);
-            Destroy(gameObject);
+            PlayCollectSound();
+            Destroy(gameObject, destroyDelayAfterCollect);
             return;
         }
 
         photonView.RPC(nameof(CollectOnMaster), RpcTarget.MasterClient, PhotonNetwork.LocalPlayer.ActorNumber);
+    }
+
+    private void PlayCollectSound()
+    {
+        if (collectSound == null)
+        {
+            return;
+        }
+
+        AudioSource.PlayClipAtPoint(collectSound, transform.position);
+    }
+
+    [PunRPC]
+    private void PlayCollectSoundRpc()
+    {
+        PlayCollectSound();
     }
 
     [PunRPC]
@@ -230,6 +251,7 @@ public class CollectibleItem : MonoBehaviourPun
         }
 
         CollectibleSpawner.NotifyCollected(ownerActorNumber);
+        photonView.RPC(nameof(PlayCollectSoundRpc), RpcTarget.All);
         PhotonNetwork.Destroy(gameObject);
     }
 
