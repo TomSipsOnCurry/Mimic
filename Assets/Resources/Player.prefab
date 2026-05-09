@@ -229,7 +229,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   body: {fileID: 7868662327747982097}
-  speed: 4
+  speed: 6
   ttsAudioSource: {fileID: 0}
   chatInputField: {fileID: 0}
   chatUiRoot: {fileID: 0}
@@ -248,7 +248,7 @@ MonoBehaviour:
   generatedMouthLocalScale: {x: 0.055, y: 0.006, z: 1}
   mouthOpenScale: 5
   mouthResponse: 24
-  speechTextWorldYOffset: 0.4
+  speechTextWorldYOffset: 2.5
   speechTextSize: {x: 360, y: 82}
   speechTextFontSize: 28
   speechTextFont: {fileID: 0}

@@ -34,7 +34,7 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
     [SerializeField] private Vector3 generatedMouthLocalScale = new Vector3(0.055f, 0.006f, 1f);
     [SerializeField] private float mouthOpenScale = 5f;
     [SerializeField] private float mouthResponse = 24f;
-    [SerializeField] private float speechTextWorldYOffset = 0.4f;
+    [SerializeField] private float speechTextWorldYOffset = 1.5f;
     [SerializeField] private Vector2 speechTextSize = new Vector2(280f, 82f);
     [SerializeField] private float speechTextFontSize = 28f;
     [SerializeField] private TMP_FontAsset speechTextFont;
@@ -712,6 +712,9 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
         }
 
         speechText.text = message.Trim();
+        Debug.Log("Speech text created: " + speechText.text);
+        Debug.Log("Speech object: " + speechText.gameObject.name);
+        Debug.Log("Speech position: " + speechTextRect.position);
         speechText.gameObject.SetActive(true);
         UpdateSpeechTextPosition();
     }
@@ -838,9 +841,20 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
 
     private Vector2 GetSpeechScreenPosition(Camera cameraForPosition)
     {
-        Vector3 worldPosition = GetSpeechWorldPosition();
-        Vector3 screenPoint = cameraForPosition.WorldToScreenPoint(worldPosition);
-        return new Vector2(screenPoint.x, screenPoint.y);
+        if (cameraForPosition == null)
+        {
+            cameraForPosition = Camera.main;
+        }
+
+        if (cameraForPosition == null)
+        {
+            return Vector2.zero;
+        }
+
+        Vector3 worldPosition = transform.position + Vector3.up * speechTextWorldYOffset;
+        Vector3 screenPosition = cameraForPosition.WorldToScreenPoint(worldPosition);
+
+        return new Vector2(screenPosition.x, screenPosition.y);
     }
 
     private Vector3 GetSpeechWorldPosition()
