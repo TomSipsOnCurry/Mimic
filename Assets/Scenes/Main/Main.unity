@@ -1252,8 +1252,8 @@ MonoBehaviour:
   - section: 0
     folderPath: Assets/Scenes/DIFFENT ROOMS/Top Left Corner
     prefabs:
-    - {fileID: 4504662589858028483, guid: d84c7100c7c3a244db0a8d2859532e65, type: 3}
-    - {fileID: 3395310590446735325, guid: b6a8e53d24018fb42bb5cdc8da8eb0f9, type: 3}
+    - {fileID: 4352084046141627491, guid: 849eb120c5df7084a94321a42f6e9e9f, type: 3}
+    - {fileID: 5839558516750935765, guid: 8daac4bb227bf6b4592565cd56037dca, type: 3}
   - section: 1
     folderPath: Assets/Scenes/DIFFENT ROOMS/Top Middle
     prefabs:
@@ -1262,8 +1262,8 @@ MonoBehaviour:
   - section: 2
     folderPath: Assets/Scenes/DIFFENT ROOMS/Top Right Corner
     prefabs:
-    - {fileID: 4352084046141627491, guid: 849eb120c5df7084a94321a42f6e9e9f, type: 3}
-    - {fileID: 5839558516750935765, guid: 8daac4bb227bf6b4592565cd56037dca, type: 3}
+    - {fileID: 4504662589858028483, guid: d84c7100c7c3a244db0a8d2859532e65, type: 3}
+    - {fileID: 3395310590446735325, guid: b6a8e53d24018fb42bb5cdc8da8eb0f9, type: 3}
   - section: 3
     folderPath: Assets/Scenes/DIFFENT ROOMS/Middle Left
     prefabs:

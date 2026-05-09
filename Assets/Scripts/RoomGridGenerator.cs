@@ -34,6 +34,8 @@ public class RoomGridGenerator : MonoBehaviour
     private const int MiddleSlot = 2;
     private const string WallsLayerName = "Walls";
 
+    [SerializeField] private string enemyPrefabName = "Enemy";
+
     [Header("Layout")]
     public Transform slotsRoot;
     public Transform generatedRoomsRoot;
@@ -97,6 +99,37 @@ public class RoomGridGenerator : MonoBehaviour
         grid.cellGap = Vector3.zero;
         grid.cellLayout = GridLayout.CellLayout.Rectangle;
         grid.cellSwizzle = GridLayout.CellSwizzle.XYZ;
+    }
+
+    private void SpawnEnemy()
+    {
+        // Only host/master spawns enemy
+        if (Photon.Pun.PhotonNetwork.InRoom &&
+            !Photon.Pun.PhotonNetwork.IsMasterClient)
+        {
+            return;
+        }
+
+        Vector3 spawnPosition = GetSlotPosition(4, 4);
+
+        if (Photon.Pun.PhotonNetwork.InRoom)
+        {
+            Photon.Pun.PhotonNetwork.Instantiate(
+                enemyPrefabName,
+                spawnPosition,
+                Quaternion.identity
+            );
+        }
+        else
+        {
+            GameObject enemyPrefab =
+                Resources.Load<GameObject>(enemyPrefabName);
+
+            if (enemyPrefab != null)
+            {
+                Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
+            }
+        }
     }
 
     public static bool TryGetPlayerSpawnPosition(out Vector3 position)
@@ -166,6 +199,8 @@ public class RoomGridGenerator : MonoBehaviour
                 PrepareRoomTilemaps(room);
             }
         }
+
+        SpawnEnemy();
 
         if (randomSeed != 0)
         {
