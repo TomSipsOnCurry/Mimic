@@ -71,20 +71,23 @@ public static class GameState
 
     // ── Death ─────────────────────────────────────────────────────────────────
 
-    public static void TriggerDeath()
+    // Called only on the client whose player was caught — does NOT broadcast
+    public static void TriggerLocalDeath()
     {
         if (_gameOver) return;
-        Debug.Log("GameState.TriggerDeath called");
+        _gameOver = true;
+        Debug.Log("GameState.TriggerLocalDeath — showing dead screen and leaving room");
+        BuildEndScreen(LoadSprite("Textures/Dead"));
 
         if (PhotonNetwork.InRoom)
-        {
-            var props = new Hashtable { { RoomKeyGameOver, 2 } };
-            PhotonNetwork.CurrentRoom.SetCustomProperties(props);
-        }
-        else
-        {
-            ShowEndScreen(false);
-        }
+            PhotonStateListener.ScheduleLeaveRoom();
+    }
+
+    // Reset static state when joining a new room (so a second game works correctly)
+    public static void ResetForNewGame()
+    {
+        _tokenCount = 0;
+        _gameOver   = false;
     }
 
     // ── End screen ────────────────────────────────────────────────────────────
@@ -166,14 +169,38 @@ public static class GameState
 // Tiny MonoBehaviour whose only job is to receive Photon room property callbacks
 public sealed class PhotonStateListener : MonoBehaviourPunCallbacks
 {
+    private static PhotonStateListener _instance;
+
+    private void Awake() { _instance = this; }
+
+    // Called by GameState.TriggerLocalDeath — leaves room after the player sees the screen
+    public static void ScheduleLeaveRoom()
+    {
+        if (_instance != null)
+            _instance.Invoke(nameof(LeaveRoom), 3f);
+    }
+
+    private void LeaveRoom()
+    {
+        if (PhotonNetwork.InRoom)
+            PhotonNetwork.LeaveRoom();
+    }
+
+    // Reset game state so a second game works correctly
+    public override void OnJoinedRoom()
+    {
+        GameState.ResetForNewGame();
+    }
+
     public override void OnRoomPropertiesUpdate(Hashtable changedProps)
     {
+        // Only the win condition (all tokens) broadcasts to everyone
         if (changedProps.ContainsKey("go"))
         {
             int state = (int)changedProps["go"];
-            GameState.ShowEndScreen(state == 1);
+            if (state == 1) // escaped — all players win together
+                GameState.ShowEndScreen(true);
+            // state == 2 (dead) is handled locally only — no broadcast
         }
-        // Token count is read directly from room properties by GameState.TokenCount
-        // so no action needed here — TokenProgressUI polls TokenCount every frame
     }
 }

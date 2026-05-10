@@ -1441,6 +1441,15 @@ public sealed class MimicEnemy : MonoBehaviour
 
     // ── Death on Touch ────────────────────────────────────────────────────────
 
+    private static readonly string[] JumpscareLines =
+    {
+        "found you",
+        "got you",
+        "i see you",
+        "you cannot hide",
+        "hello",
+    };
+
     private void CheckMimicTouch()
     {
         if (deathTriggered) return;
@@ -1460,9 +1469,9 @@ public sealed class MimicEnemy : MonoBehaviour
             float dist = Vector2.Distance(transform.position, player.transform.position);
             if (dist <= touchKillRadius)
             {
-                Debug.Log($"MIMIC: Touched player at distance {dist:F2} — triggering death.");
+                Debug.Log($"MIMIC: Touched local player at {dist:F2} units — jumpscare + death.");
                 deathTriggered = true;
-                GameState.TriggerDeath();
+                StartCoroutine(JumpscareAndDie());
                 return;
             }
         }
@@ -1480,6 +1489,33 @@ public sealed class MimicEnemy : MonoBehaviour
         if (pv != null && !pv.IsMine) return;
 
         deathTriggered = true;
-        GameState.TriggerDeath();
+        StartCoroutine(JumpscareAndDie());
+    }
+
+    private System.Collections.IEnumerator JumpscareAndDie()
+    {
+        // Silence current mimic speech
+        if (voiceSource != null && voiceSource.isPlaying)
+            voiceSource.Stop();
+
+        // Generate and play a SAM jumpscare line — played at camera position so it's
+        // always full volume regardless of spatial distance
+        string line = JumpscareLines[UnityEngine.Random.Range(0, JumpscareLines.Length)];
+        AudioClip clip = UnitySAMWrapper.GenerateClipFromText(SanitizeForSpeech(line));
+
+        float clipLength = 0f;
+        if (clip != null)
+        {
+            Camera cam = Camera.main;
+            Vector3 pos = cam != null ? cam.transform.position : transform.position;
+            AudioSource.PlayClipAtPoint(clip, pos, 1f);
+            clipLength = clip.length;
+        }
+
+        // Wait for the voice to finish, then a short pause for effect
+        yield return new WaitForSeconds(clipLength + 0.4f);
+
+        // Only THIS player's client triggers death — no broadcast to others
+        GameState.TriggerLocalDeath();
     }
 }
