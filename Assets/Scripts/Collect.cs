@@ -114,7 +114,7 @@ public class CollectibleItem : MonoBehaviourPun
         if (!PhotonNetwork.InRoom)
         {
             PlayCollectSound();
-            if (GameManager.Instance != null) GameManager.Instance.AddToken();
+            GameState.AddToken();
             Destroy(gameObject, destroyDelayAfterCollect);
             return;
         }
@@ -127,8 +127,7 @@ public class CollectibleItem : MonoBehaviourPun
     {
         if (!PhotonNetwork.IsMasterClient) return;
 
-        if (GameManager.Instance != null)
-            GameManager.Instance.AddToken();
+        GameState.AddToken();
 
         photonView.RPC(nameof(RPC_PlaySound), RpcTarget.All);
         PhotonNetwork.Destroy(gameObject);

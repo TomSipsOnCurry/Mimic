@@ -1462,7 +1462,7 @@ public sealed class MimicEnemy : MonoBehaviour
             {
                 Debug.Log($"MIMIC: Touched player at distance {dist:F2} — triggering death.");
                 deathTriggered = true;
-                GameManager.TriggerDeath();
+                GameState.TriggerDeath();
                 return;
             }
         }
@@ -1480,6 +1480,6 @@ public sealed class MimicEnemy : MonoBehaviour
         if (pv != null && !pv.IsMine) return;
 
         deathTriggered = true;
-        GameManager.TriggerDeath();
+        GameState.TriggerDeath();
     }
 }

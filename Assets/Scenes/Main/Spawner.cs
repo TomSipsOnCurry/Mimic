@@ -41,7 +41,7 @@ public class CollectibleSpawner : MonoBehaviour
 
     private void SpawnTokens()
     {
-        int total = GameManager.TotalTokens;
+        int total = GameState.TotalTokens;
         Debug.Log($"CollectibleSpawner: Spawning {total} global tokens.");
 
         for (int i = 0; i < total; i++)

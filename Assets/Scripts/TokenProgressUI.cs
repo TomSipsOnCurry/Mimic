@@ -37,7 +37,7 @@ public class TokenProgressUI : MonoBehaviour
     // Poll every frame — simpler and immune to event-subscription timing issues
     private void Update()
     {
-        int current = GameManager.GetGlobalTokenCount();
+        int current = GameState.TokenCount;
         if (current != displayedCount)
             Refresh(current);
     }
@@ -59,7 +59,7 @@ public class TokenProgressUI : MonoBehaviour
         var panelGO = new GameObject("TokenPanel");
         panelGO.transform.SetParent(canvasGO.transform, false);
 
-        int total = GameManager.TotalTokens;
+        int total = GameState.TotalTokens;
         float panelW = total * slotSize.x + (total - 1) * slotSpacing + panelPadding.x * 2f;
         float panelH = slotSize.y + labelHeight + panelPadding.y * 2f + 4f;
 
@@ -139,6 +139,6 @@ public class TokenProgressUI : MonoBehaviour
                 slots[i].color = i < count ? FilledColor : EmptyColor;
 
         if (countLabel != null)
-            countLabel.text = $"{count} / {GameManager.TotalTokens}";
+            countLabel.text = $"{count} / {GameState.TotalTokens}";
     }
 }
