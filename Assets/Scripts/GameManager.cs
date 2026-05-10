@@ -22,6 +22,16 @@ public class GameManager : MonoBehaviourPunCallbacks
     private int offlineTokenCount;
     private bool gameEnded;
 
+    // Auto-creates the GameManager before any scene loads — no need to place it in a scene
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void Bootstrap()
+    {
+        if (Instance != null) return;
+        var go = new GameObject("GameManager");
+        UnityEngine.Object.DontDestroyOnLoad(go);
+        go.AddComponent<GameManager>();
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -31,24 +41,30 @@ public class GameManager : MonoBehaviourPunCallbacks
         }
 
         Instance = this;
+        DontDestroyOnLoad(gameObject);
         LoadEndSprites();
     }
 
     private void LoadEndSprites()
     {
         if (escapedSprite == null)
-        {
-            var tex = Resources.Load<Texture2D>("Textures/Escaped");
-            if (tex != null)
-                escapedSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
-        }
+            escapedSprite = LoadSprite("Textures/Escaped");
 
         if (deadSprite == null)
-        {
-            var tex = Resources.Load<Texture2D>("Textures/Dead");
-            if (tex != null)
-                deadSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
-        }
+            deadSprite = LoadSprite("Textures/Dead");
+    }
+
+    private static Sprite LoadSprite(string resourcePath)
+    {
+        var sprite = Resources.Load<Sprite>(resourcePath);
+        if (sprite != null) return sprite;
+
+        var tex = Resources.Load<Texture2D>(resourcePath);
+        if (tex != null)
+            return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+
+        Debug.LogWarning($"GameManager: Could not load sprite at Resources/{resourcePath}");
+        return null;
     }
 
     public static int GetGlobalTokenCount()
@@ -66,6 +82,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     public void AddToken()
     {
         if (gameEnded) return;
+        Debug.Log($"GameManager.AddToken — offline count={offlineTokenCount + 1}, inRoom={PhotonNetwork.InRoom}");
 
         if (PhotonNetwork.InRoom)
         {
@@ -94,6 +111,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     // Any client can call this — Photon propagates the property to all clients immediately
     public static void TriggerDeath()
     {
+        Debug.Log($"GameManager.TriggerDeath called — Instance={Instance != null}, gameEnded={Instance?.gameEnded}");
         if (Instance == null || Instance.gameEnded) return;
 
         if (PhotonNetwork.InRoom)
@@ -148,16 +166,13 @@ public class GameManager : MonoBehaviourPunCallbacks
         StretchRect(bg.AddComponent<RectTransform>());
         bg.AddComponent<Image>().color = Color.black;
 
-        // End image centered
+        // End image — fills the screen, aspect-ratio preserved
         if (image != null)
         {
             var imgGO = new GameObject("EndImage");
             imgGO.transform.SetParent(canvas.transform, false);
             var rt = imgGO.AddComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.5f, 0.5f);
-            rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(image.texture.width, image.texture.height);
+            StretchRect(rt);
             var img = imgGO.AddComponent<Image>();
             img.sprite = image;
             img.preserveAspect = true;

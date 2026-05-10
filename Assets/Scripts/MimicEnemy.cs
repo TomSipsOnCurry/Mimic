@@ -26,7 +26,7 @@ public sealed class MimicEnemy : MonoBehaviour
     [SerializeField] private int playerVariant;
     [SerializeField] private bool applyPlayerScaleOnAwake = true;
     [SerializeField] private Vector3 playerFormScale = new Vector3(9f, 9f, 9f);
-    [SerializeField] private int sortingOrderBase = 510;
+    [SerializeField] private int sortingOrderBase = 490;
 
     [Header("Mimic Appearance")]
     [SerializeField] private bool randomizePlayerVariant = true;
@@ -149,7 +149,7 @@ public sealed class MimicEnemy : MonoBehaviour
     }
 
     [Header("Death Detection")]
-    [SerializeField] private float touchKillRadius = 1.5f;
+    [SerializeField] private float touchKillRadius = 3f;
 
     private bool deathTriggered;
 
@@ -157,6 +157,14 @@ public sealed class MimicEnemy : MonoBehaviour
     {
         UpdateMovement();
         CheckMimicTouch();
+
+        // Stop all speech and movement logic once death has been triggered
+        if (deathTriggered)
+        {
+            if (voiceSource != null && voiceSource.isPlaying)
+                voiceSource.Stop();
+            return;
+        }
 
         pollTimer -= Time.deltaTime;
         if (pollTimer > 0f)
@@ -1452,6 +1460,7 @@ public sealed class MimicEnemy : MonoBehaviour
             float dist = Vector2.Distance(transform.position, player.transform.position);
             if (dist <= touchKillRadius)
             {
+                Debug.Log($"MIMIC: Touched player at distance {dist:F2} — triggering death.");
                 deathTriggered = true;
                 GameManager.TriggerDeath();
                 return;

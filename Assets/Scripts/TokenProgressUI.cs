@@ -4,6 +4,16 @@ using UnityEngine.UI;
 
 public class TokenProgressUI : MonoBehaviour
 {
+    // Auto-creates the progress bar after each scene loads — no need to place it in a scene
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void Bootstrap()
+    {
+        if (FindObjectOfType<TokenProgressUI>() != null) return;
+        var go = new GameObject("TokenProgressUI");
+        DontDestroyOnLoad(go);
+        go.AddComponent<TokenProgressUI>();
+    }
+
     [SerializeField] private Vector2 slotSize = new Vector2(26f, 26f);
     [SerializeField] private float slotSpacing = 5f;
     [SerializeField] private Vector2 panelPadding = new Vector2(10f, 8f);
@@ -12,20 +22,25 @@ public class TokenProgressUI : MonoBehaviour
 
     private Image[] slots;
     private TextMeshProUGUI countLabel;
+    private int displayedCount = -1;
 
-    private static readonly Color FilledColor  = new Color(1f, 0.88f, 0.1f, 1f);
-    private static readonly Color EmptyColor   = new Color(0.18f, 0.18f, 0.22f, 1f);
-    private static readonly Color BorderColor  = new Color(1f, 1f, 1f, 0.95f);
-    private static readonly Color PanelColor   = new Color(0f, 0f, 0f, 0.82f);
+    private static readonly Color FilledColor = new Color(1f, 0.88f, 0.1f, 1f);
+    private static readonly Color EmptyColor  = new Color(0.18f, 0.18f, 0.22f, 1f);
+    private static readonly Color BorderColor = new Color(1f, 1f, 1f, 0.95f);
+    private static readonly Color PanelColor  = new Color(0f, 0f, 0f, 0.82f);
 
     private void Awake()
     {
         BuildUI();
-        Refresh(GameManager.GetGlobalTokenCount());
     }
 
-    private void OnEnable()  => GameManager.OnTokensChanged += Refresh;
-    private void OnDisable() => GameManager.OnTokensChanged -= Refresh;
+    // Poll every frame — simpler and immune to event-subscription timing issues
+    private void Update()
+    {
+        int current = GameManager.GetGlobalTokenCount();
+        if (current != displayedCount)
+            Refresh(current);
+    }
 
     private void BuildUI()
     {
