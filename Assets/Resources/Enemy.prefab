@@ -172,24 +172,34 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAI
   wanderSpeed: 6
-  fleeSpeed: 12
   chaseSpeed: 10
   acceleration: 100
-  playerDetectRadius: 15
-  playerVisionRadius: 15
+  playerDetectRadius: 90
   playerLayer:
     serializedVersion: 2
     m_Bits: 8
   wallLayer:
     serializedVersion: 2
     m_Bits: 64
-  sightingsBeforeAttack: 3
-  fleeDistance: 8
-  wanderRadius: 20
-  wanderRetargetTime: 2
-  killDistance: 1
+  lureRetargetTime: 3
+  lureRetargetJitter: 0.75
+  lureArrivalDistance: 1.25
+  minimumPlayerScanRadius: 90
+  roomRoamRadius: 7
+  randomRoomMoveChance: 0.4
+  randomRoomMinimumDistanceFromPlayer: 2
+  randomRoomMinimumDistanceFromCurrent: 2
+  wanderRadius: 25
+  wanderRetargetTime: 3
   navMeshSearchRadius: 30
   startDelay: 0.5
+  navMeshRetryInterval: 0.25
+  navMeshPlacementTimeout: 8
+  roomCenterSampleRadius: 8
+  destinationProbeAttempts: 24
+  wallClearanceRadius: 0.45
+  stuckRepathTime: 1.5
+  allowUnseenRoomRelocation: 1
 --- !u!195 &7385378339750790047
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -197,7 +207,7 @@ NavMeshAgent:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4766284491592909045}
-  m_Enabled: 1
+  m_Enabled: 0
   m_AgentTypeID: 0
   m_Radius: 2.1
   m_Speed: 3.5
@@ -210,7 +220,7 @@ NavMeshAgent:
   m_AutoRepath: 1
   m_Height: 4.2
   m_BaseOffset: 2.1
-  m_WalkableMask: 4294967295
+  m_WalkableMask: 4294967293
   m_ObstacleAvoidanceType: 4
 --- !u!114 &895219897458377127
 MonoBehaviour:

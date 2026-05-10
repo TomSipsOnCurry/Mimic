@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using NavMeshPlus.Components;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -30,9 +32,12 @@ public class RoomGridGenerator : MonoBehaviour
         public GameObject[] prefabs;
     }
 
-    private const int GridSize = 5;
+    public const int GridDimension = 5;
+    private const int GridSize = GridDimension;
     private const int MiddleSlot = 2;
+    private const float RoomGap = 10f;
     private const string WallsLayerName = "Walls";
+    private const int NotWalkableArea = 1;
 
     [Header("Layout")]
     public Transform slotsRoot;
@@ -48,7 +53,12 @@ public class RoomGridGenerator : MonoBehaviour
     [Header("Player Spawn")]
     [SerializeField] private Vector3 playerSpawnLocalOffset = Vector3.zero;
 
+    [Header("Navigation")]
+    [SerializeField] private bool rebuildNavMeshAfterGeneration = true;
+    [SerializeField] private float navMeshRebuildDelay = 0.05f;
+
     private readonly Dictionary<RoomSection, GameObject[]> runtimePrefabCache = new Dictionary<RoomSection, GameObject[]>();
+    private Coroutine navMeshRebuildCoroutine;
 
     private void Awake()
     {
@@ -108,10 +118,7 @@ public class RoomGridGenerator : MonoBehaviour
     public static bool TryGetPlayerSpawnPosition(out Vector3 position)
     {
 #if UNITY_2023_1_OR_NEWER
-        RoomGridGenerator[] generators = FindObjectsByType<RoomGridGenerator>(
-            FindObjectsInactive.Include,
-            FindObjectsSortMode.None
-        );
+        RoomGridGenerator[] generators = FindObjectsByType<RoomGridGenerator>(FindObjectsInactive.Include);
 #else
         RoomGridGenerator[] generators = FindObjectsOfType<RoomGridGenerator>(true);
 #endif
@@ -189,19 +196,113 @@ public class RoomGridGenerator : MonoBehaviour
         {
             UnityEngine.Random.state = previousRandomState;
         }
+
+        RequestNavMeshRebuild();
     }
 
     public Vector3 GetSlotPosition(int row, int column)
     {
-        float roomGap = 10f;
-
-        float spacingX = roomSize.x + roomGap;
-        float spacingY = roomSize.y + roomGap;
+        float spacingX = GetRoomSpacingX();
+        float spacingY = GetRoomSpacingY();
 
         float x = (column - MiddleSlot) * spacingX;
         float y = (MiddleSlot - row) * spacingY;
 
         return transform.TransformPoint(new Vector3(x, y, 0f));
+    }
+
+    public bool TryGetNearestRoomIndex(Vector3 worldPosition, out int row, out int column)
+    {
+        Vector3 localPosition = transform.InverseTransformPoint(worldPosition);
+        float spacingX = Mathf.Max(0.01f, GetRoomSpacingX());
+        float spacingY = Mathf.Max(0.01f, GetRoomSpacingY());
+
+        column = Mathf.RoundToInt(localPosition.x / spacingX + MiddleSlot);
+        row = Mathf.RoundToInt(MiddleSlot - localPosition.y / spacingY);
+
+        column = Mathf.Clamp(column, 0, GridSize - 1);
+        row = Mathf.Clamp(row, 0, GridSize - 1);
+        return true;
+    }
+
+    public bool TryGetAdjacentRoomCenterNear(Vector3 targetPosition, Vector3 seekerPosition, out Vector3 roomCenter)
+    {
+        if (!TryGetNearestRoomIndex(targetPosition, out int targetRow, out int targetColumn))
+        {
+            roomCenter = Vector3.zero;
+            return false;
+        }
+
+        TryGetNearestRoomIndex(seekerPosition, out int seekerRow, out int seekerColumn);
+
+        if (IsRoomAdjacent(targetRow, targetColumn, seekerRow, seekerColumn))
+        {
+            roomCenter = GetSlotPosition(seekerRow, seekerColumn);
+            return true;
+        }
+
+        int bestRow = -1;
+        int bestColumn = -1;
+        float bestDistance = float.PositiveInfinity;
+
+        EvaluateAdjacentRoom(targetRow - 1, targetColumn, seekerPosition, ref bestRow, ref bestColumn, ref bestDistance);
+        EvaluateAdjacentRoom(targetRow + 1, targetColumn, seekerPosition, ref bestRow, ref bestColumn, ref bestDistance);
+        EvaluateAdjacentRoom(targetRow, targetColumn - 1, seekerPosition, ref bestRow, ref bestColumn, ref bestDistance);
+        EvaluateAdjacentRoom(targetRow, targetColumn + 1, seekerPosition, ref bestRow, ref bestColumn, ref bestDistance);
+
+        if (bestRow < 0 || bestColumn < 0)
+        {
+            roomCenter = Vector3.zero;
+            return false;
+        }
+
+        roomCenter = GetSlotPosition(bestRow, bestColumn);
+        return true;
+    }
+
+    public bool IsRoomAdjacent(int rowA, int columnA, int rowB, int columnB)
+    {
+        if (!IsValidRoomIndex(rowA, columnA) || !IsValidRoomIndex(rowB, columnB))
+        {
+            return false;
+        }
+
+        int distance = Mathf.Abs(rowA - rowB) + Mathf.Abs(columnA - columnB);
+        return distance == 1;
+    }
+
+    public bool IsValidRoomIndex(int row, int column)
+    {
+        return row >= 0 && row < GridSize && column >= 0 && column < GridSize;
+    }
+
+    public float GetRoomSpacingX()
+    {
+        return roomSize.x + RoomGap;
+    }
+
+    public float GetRoomSpacingY()
+    {
+        return roomSize.y + RoomGap;
+    }
+
+    private void EvaluateAdjacentRoom(int row, int column, Vector3 seekerPosition, ref int bestRow, ref int bestColumn, ref float bestDistance)
+    {
+        if (!IsValidRoomIndex(row, column))
+        {
+            return;
+        }
+
+        Vector3 candidateCenter = GetSlotPosition(row, column);
+        float distance = (candidateCenter - seekerPosition).sqrMagnitude;
+        if (distance >= bestDistance)
+        {
+            return;
+        }
+
+        bestDistance = distance;
+        bestRow = row;
+        bestColumn = column;
     }
 
     private static RoomSection GetSection(int row, int column)
@@ -348,7 +449,29 @@ public class RoomGridGenerator : MonoBehaviour
         {
             tilemaps[i].CompressBounds();
             tilemaps[i].RefreshAllTiles();
+            PrepareNavigationModifier(tilemaps[i]);
         }
+    }
+
+    private static void PrepareNavigationModifier(UnityEngine.Tilemaps.Tilemap tilemap)
+    {
+        if (tilemap == null)
+        {
+            return;
+        }
+
+        NavMeshModifier modifier = tilemap.GetComponent<NavMeshModifier>();
+        if (modifier == null)
+        {
+            modifier = tilemap.gameObject.AddComponent<NavMeshModifier>();
+        }
+
+        int wallsLayer = LayerMask.NameToLayer(WallsLayerName);
+        bool isWall = tilemap.name.IndexOf("wall", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                      (wallsLayer >= 0 && tilemap.gameObject.layer == wallsLayer);
+        modifier.ignoreFromBuild = false;
+        modifier.overrideArea = isWall;
+        modifier.area = isWall ? NotWalkableArea : 0;
     }
 
     private static void ApplyWallsLayer(GameObject room)
@@ -408,6 +531,56 @@ public class RoomGridGenerator : MonoBehaviour
                 DestroyImmediate(child.gameObject);
             }
         }
+    }
+
+    private void RequestNavMeshRebuild()
+    {
+        if (!Application.isPlaying || !rebuildNavMeshAfterGeneration)
+        {
+            return;
+        }
+
+        if (navMeshRebuildCoroutine != null)
+        {
+            StopCoroutine(navMeshRebuildCoroutine);
+        }
+
+        navMeshRebuildCoroutine = StartCoroutine(RebuildNavMeshAfterGeneration());
+    }
+
+    private IEnumerator RebuildNavMeshAfterGeneration()
+    {
+        if (navMeshRebuildDelay > 0f)
+        {
+            yield return new WaitForSeconds(navMeshRebuildDelay);
+        }
+        else
+        {
+            yield return null;
+        }
+
+        NavMeshSurface[] surfaces = GetComponentsInChildren<NavMeshSurface>(true);
+        if (surfaces.Length == 0)
+        {
+#if UNITY_2023_1_OR_NEWER
+            surfaces = FindObjectsByType<NavMeshSurface>(FindObjectsInactive.Include);
+#else
+            surfaces = FindObjectsOfType<NavMeshSurface>(true);
+#endif
+        }
+
+        for (int i = 0; i < surfaces.Length; i++)
+        {
+            NavMeshSurface surface = surfaces[i];
+            if (surface == null || !surface.isActiveAndEnabled)
+            {
+                continue;
+            }
+
+            surface.BuildNavMesh();
+        }
+
+        navMeshRebuildCoroutine = null;
     }
 
     private void OnDrawGizmosSelected()

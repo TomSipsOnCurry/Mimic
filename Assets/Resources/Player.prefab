@@ -254,6 +254,12 @@ MonoBehaviour:
   speechTextFont: {fileID: 0}
   speechTextFontResourcePath: Fonts & Materials/BoldPixels SDF
   ttsAudioSource: {fileID: 0}
+  enableSpatialAudio: 1
+  speechSpatialBlend: 1
+  movementSpatialBlend: 1
+  spatialMinDistance: 1.5
+  spatialMaxDistance: 80
+  spatialRolloffMode: 1
   movementAudioSource: {fileID: 0}
   trolleyMoveClip: {fileID: 8300000, guid: c82d111057eaf4852a96f0a33d81972f, type: 3}
   movementSoundMinInput: 0.1
@@ -346,11 +352,11 @@ AudioSource:
   Spatialize: 0
   SpatializePostEffects: 0
   Priority: 128
-  DopplerLevel: 1
-  MinDistance: 1
-  MaxDistance: 500
+  DopplerLevel: 0
+  MinDistance: 1.5
+  MaxDistance: 32
   Pan2D: 0
-  rolloffMode: 0
+  rolloffMode: 1
   BypassEffects: 0
   BypassListenerEffects: 0
   BypassReverbZones: 0
@@ -383,7 +389,7 @@ AudioSource:
     m_Curve:
     - serializedVersion: 3
       time: 0
-      value: 0
+      value: 1
       inSlope: 0
       outSlope: 0
       tangentMode: 0

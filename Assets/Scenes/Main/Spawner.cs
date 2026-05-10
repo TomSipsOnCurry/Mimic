@@ -1,21 +1,16 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using Photon.Pun;
-using Photon.Realtime;
 
 public class CollectibleSpawner : MonoBehaviour
 {
     [Header("Collectibles")]
     [SerializeField] private string collectiblePrefabName = "Collectible";
-    [SerializeField] private int collectiblesPerPlayer = 2;
 
     [Header("Map")]
     [SerializeField] private RoomGridGenerator roomGrid;
     [SerializeField] private float spawnRandomOffset = 6f;
     [SerializeField] private float minimumDistanceFromPlayerSpawn = 8f;
-
-    private static readonly Dictionary<int, int> collectedCounts = new Dictionary<int, int>();
 
     private void Start()
     {
@@ -35,127 +30,67 @@ public class CollectibleSpawner : MonoBehaviour
 #endif
         }
 
+        // Only MasterClient (or offline) spawns tokens
         if (PhotonNetwork.InRoom && !PhotonNetwork.IsMasterClient)
         {
             yield break;
         }
 
-        SpawnCollectibles();
+        SpawnTokens();
     }
 
-    private void SpawnCollectibles()
+    private void SpawnTokens()
     {
-        collectedCounts.Clear();
+        int total = GameManager.TotalTokens;
+        Debug.Log($"CollectibleSpawner: Spawning {total} global tokens.");
 
-        if (PhotonNetwork.InRoom)
+        for (int i = 0; i < total; i++)
         {
-            Player[] players = PhotonNetwork.PlayerList;
-
-            foreach (Player player in players)
-            {
-                SpawnForActor(player.ActorNumber);
-            }
-        }
-        else
-        {
-            SpawnForActor(1);
-        }
-    }
-
-    private void SpawnForActor(int actorNumber)
-    {
-        collectedCounts[actorNumber] = 0;
-
-        Debug.Log($"Spawning {collectiblesPerPlayer} collectibles for actor {actorNumber}");
-
-        for (int i = 0; i < collectiblesPerPlayer; i++)
-        {
-            Vector3 spawnPosition = GetRandomMapPosition();
+            Vector3 pos = GetRandomMapPosition();
             int spriteIndex = Random.Range(0, 1000);
-
-            GameObject item;
 
             if (PhotonNetwork.InRoom)
             {
-                object[] spawnData =
-                {
-                    actorNumber,
-                    spriteIndex
-                };
-
-                item = PhotonNetwork.Instantiate(
-                    collectiblePrefabName,
-                    spawnPosition,
-                    Quaternion.identity,
-                    0,
-                    spawnData
-                );
+                object[] data = { spriteIndex };
+                var go = PhotonNetwork.Instantiate(collectiblePrefabName, pos, Quaternion.identity, 0, data);
+                go.name = $"Token_{i + 1}";
             }
             else
             {
-                GameObject prefab = Resources.Load<GameObject>(collectiblePrefabName);
-
+                var prefab = Resources.Load<GameObject>(collectiblePrefabName);
                 if (prefab == null)
                 {
-                    Debug.LogError("Collectible prefab not found in Resources: " + collectiblePrefabName);
+                    Debug.LogError("Collectible prefab not found: " + collectiblePrefabName);
                     return;
                 }
 
-                item = Instantiate(prefab, spawnPosition, Quaternion.identity);
+                var go = Instantiate(prefab, pos, Quaternion.identity);
+                go.name = $"Token_{i + 1}";
 
-                CollectibleItem collectible = item.GetComponent<CollectibleItem>();
-                if (collectible != null)
-                {
-                    collectible.SetupOffline(actorNumber, spriteIndex);
-                }
+                var item = go.GetComponent<CollectibleItem>();
+                if (item != null)
+                    item.SetupOffline(spriteIndex);
             }
-
-            item.name = $"Collectible_Actor_{actorNumber}_{i + 1}";
-            Debug.Log($"Spawned {item.name} at {spawnPosition}");
         }
     }
 
     private Vector3 GetRandomMapPosition()
     {
-        if (roomGrid == null)
-        {
-            return Vector3.zero;
-        }
+        if (roomGrid == null) return Vector3.zero;
 
         for (int attempt = 0; attempt < 40; attempt++)
         {
             int row = Random.Range(0, 5);
-            int column = Random.Range(0, 5);
+            int col = Random.Range(0, 5);
+            Vector3 center = roomGrid.GetSlotPosition(row, col);
+            Vector2 offset = Random.insideUnitCircle * spawnRandomOffset;
+            Vector3 pos = center + new Vector3(offset.x, offset.y, 0f);
+            pos.z = 0f;
 
-            Vector3 roomCenter = roomGrid.GetSlotPosition(row, column);
-            Vector2 randomOffset = Random.insideUnitCircle * spawnRandomOffset;
-
-            Vector3 position = roomCenter + new Vector3(randomOffset.x, randomOffset.y, 0f);
-            position.z = 0f;
-
-            if (Vector2.Distance(position, roomGrid.GetPlayerSpawnPosition()) >= minimumDistanceFromPlayerSpawn)
-            {
-                return position;
-            }
+            if (Vector2.Distance(pos, roomGrid.GetPlayerSpawnPosition()) >= minimumDistanceFromPlayerSpawn)
+                return pos;
         }
 
         return roomGrid.GetSlotPosition(2, 2);
-    }
-
-    public static void NotifyCollected(int actorNumber)
-    {
-        if (!collectedCounts.ContainsKey(actorNumber))
-        {
-            collectedCounts[actorNumber] = 0;
-        }
-
-        collectedCounts[actorNumber]++;
-
-        Debug.Log($"Player {actorNumber} collected {collectedCounts[actorNumber]}/2 items.");
-
-        if (collectedCounts[actorNumber] >= 2)
-        {
-            Debug.Log($"Player {actorNumber} collected all required items!");
-        }
     }
 }

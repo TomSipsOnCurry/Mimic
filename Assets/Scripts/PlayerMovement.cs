@@ -66,6 +66,14 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
     [Header("TTS Audio")]
     [SerializeField] private AudioSource ttsAudioSource;
 
+    [Header("Spatial Audio")]
+    [SerializeField] private bool enableSpatialAudio = true;
+    [SerializeField, Range(0f, 1f)] private float speechSpatialBlend = 1f;
+    [SerializeField, Range(0f, 1f)] private float movementSpatialBlend = 1f;
+    [SerializeField] private float spatialMinDistance = 1.5f;
+    [SerializeField] private float spatialMaxDistance = 80f;
+    [SerializeField] private AudioRolloffMode spatialRolloffMode = AudioRolloffMode.Linear;
+
     [Header("Movement Audio")]
     [SerializeField] private AudioSource movementAudioSource;
     [SerializeField] private AudioClip trolleyMoveClip;
@@ -117,7 +125,7 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
 
     ttsAudioSource.playOnAwake = false;
     ttsAudioSource.loop = false;
-    ttsAudioSource.spatialBlend = 0f;
+    ConfigureSpatialAudioSource(ttsAudioSource, speechSpatialBlend);
 
     // -----------------------------
     // MOVEMENT AUDIO SOURCE
@@ -143,7 +151,7 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
 
     movementAudioSource.playOnAwake = false;
     movementAudioSource.loop = true;
-    movementAudioSource.spatialBlend = 0f;
+    ConfigureSpatialAudioSource(movementAudioSource, movementSpatialBlend);
 
     if (trolleyMoveClip != null)
     {
@@ -520,7 +528,7 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
     private static TMP_InputField FindSceneChatInputField()
     {
 #if UNITY_2023_1_OR_NEWER
-        TMP_InputField[] inputFields = FindObjectsByType<TMP_InputField>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        TMP_InputField[] inputFields = FindObjectsByType<TMP_InputField>(FindObjectsInactive.Include);
 #else
         TMP_InputField[] inputFields = FindObjectsOfType<TMP_InputField>(true);
 #endif
@@ -718,6 +726,8 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
             return;
         }
 
+        ChatLogRecorder.RecordLocalChat(GetLocalChatSenderName(), textToSpeak);
+
         // Send chat to network
         if (netManager == null)
         {
@@ -734,6 +744,18 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
         }
 
         PlaySpeech(textToSpeak);
+    }
+
+    private static string GetLocalChatSenderName()
+    {
+        if (PhotonNetwork.InRoom && PhotonNetwork.LocalPlayer != null)
+        {
+            return string.IsNullOrWhiteSpace(PhotonNetwork.NickName)
+                ? $"Player {PhotonNetwork.LocalPlayer.ActorNumber}"
+                : PhotonNetwork.NickName;
+        }
+
+        return "Player";
     }
 
     private void PlaySpeech(string textToSpeak)
@@ -754,8 +776,24 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
             ttsAudioSource = ttsObject.AddComponent<AudioSource>();
         }
 
+        ConfigureSpatialAudioSource(ttsAudioSource, speechSpatialBlend);
         ttsAudioSource.PlayOneShot(clip);
         ShowSpeechText(textToSpeak);
+    }
+
+    private void ConfigureSpatialAudioSource(AudioSource source, float spatialBlend)
+    {
+        if (source == null)
+        {
+            return;
+        }
+
+        source.spatialBlend = enableSpatialAudio ? spatialBlend : 0f;
+        source.rolloffMode = spatialRolloffMode;
+        source.minDistance = Mathf.Max(0.01f, spatialMinDistance);
+        source.maxDistance = Mathf.Max(source.minDistance + 0.01f, spatialMaxDistance);
+        source.dopplerLevel = 0f;
+        source.spread = 0f;
     }
 
     private void OnEnable()
@@ -849,7 +887,7 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
         speechText.color = Color.white;
         speechText.fontSize = speechTextFontSize;
         speechText.fontStyle = FontStyles.Bold;
-        speechText.enableWordWrapping = true;
+        speechText.textWrappingMode = TextWrappingModes.Normal;
         speechText.overflowMode = TextOverflowModes.Ellipsis;
         speechText.raycastTarget = false;
         speechText.outlineColor = new Color(0f, 0f, 0f, 0.9f);
@@ -866,7 +904,7 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
         }
 
 #if UNITY_2023_1_OR_NEWER
-        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include);
 #else
         Canvas[] canvases = FindObjectsOfType<Canvas>(true);
 #endif

@@ -6,14 +6,24 @@ public class LocalPlayerCameraFollow : MonoBehaviour
     [SerializeField] private Transform target;
     [SerializeField] private Vector3 offset = new Vector3(0f, 0f, -10f);
     [SerializeField] private float followSpeed = 12f;
+    [SerializeField] private bool placeAudioListenerOnLocalPlayer = true;
+    [SerializeField] private Vector3 audioListenerOffset = Vector3.zero;
 
     private Transform currentTarget;
+    private AudioListener cameraAudioListener;
+    private AudioListener localPlayerAudioListener;
+
+    private void Awake()
+    {
+        cameraAudioListener = GetComponent<AudioListener>();
+    }
 
     private void LateUpdate()
     {
         Transform followTarget = ResolveTarget();
         if (followTarget == null)
         {
+            SetCameraAudioListenerEnabled(true);
             return;
         }
 
@@ -29,6 +39,19 @@ public class LocalPlayerCameraFollow : MonoBehaviour
         }
 
         currentTarget = followTarget;
+        UpdateLocalPlayerAudioListener(followTarget);
+    }
+
+    private void OnDisable()
+    {
+        SetCameraAudioListenerEnabled(true);
+        DestroyLocalPlayerAudioListener();
+    }
+
+    private void OnDestroy()
+    {
+        SetCameraAudioListenerEnabled(true);
+        DestroyLocalPlayerAudioListener();
     }
 
     private Transform ResolveTarget()
@@ -45,7 +68,7 @@ public class LocalPlayerCameraFollow : MonoBehaviour
     private static Transform FindLocalPlayerTarget()
     {
 #if UNITY_2023_1_OR_NEWER
-        PlayerMovement[] players = FindObjectsByType<PlayerMovement>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        PlayerMovement[] players = FindObjectsByType<PlayerMovement>(FindObjectsInactive.Exclude);
 #else
         PlayerMovement[] players = FindObjectsOfType<PlayerMovement>();
 #endif
@@ -88,5 +111,68 @@ public class LocalPlayerCameraFollow : MonoBehaviour
 
         PhotonView playerView = candidate.GetComponent<PhotonView>();
         return playerView == null || playerView.IsMine;
+    }
+
+    private void UpdateLocalPlayerAudioListener(Transform followTarget)
+    {
+        if (!placeAudioListenerOnLocalPlayer)
+        {
+            SetCameraAudioListenerEnabled(true);
+            DestroyLocalPlayerAudioListener();
+            return;
+        }
+
+        EnsureLocalPlayerAudioListener();
+        if (localPlayerAudioListener == null)
+        {
+            SetCameraAudioListenerEnabled(true);
+            return;
+        }
+
+        SetCameraAudioListenerEnabled(false);
+
+        Transform listenerTransform = localPlayerAudioListener.transform;
+        listenerTransform.position = followTarget.position + audioListenerOffset;
+        listenerTransform.rotation = Quaternion.identity;
+    }
+
+    private void EnsureLocalPlayerAudioListener()
+    {
+        if (localPlayerAudioListener != null)
+        {
+            return;
+        }
+
+        GameObject listenerObject = new GameObject("Local Player Audio Listener");
+        listenerObject.transform.SetParent(transform, true);
+        localPlayerAudioListener = listenerObject.AddComponent<AudioListener>();
+    }
+
+    private void DestroyLocalPlayerAudioListener()
+    {
+        if (localPlayerAudioListener == null)
+        {
+            return;
+        }
+
+        GameObject listenerObject = localPlayerAudioListener.gameObject;
+        localPlayerAudioListener = null;
+
+        if (Application.isPlaying)
+        {
+            Destroy(listenerObject);
+        }
+        else
+        {
+            DestroyImmediate(listenerObject);
+        }
+    }
+
+    private void SetCameraAudioListenerEnabled(bool enabled)
+    {
+        if (cameraAudioListener != null)
+        {
+            cameraAudioListener.enabled = enabled;
+        }
     }
 }

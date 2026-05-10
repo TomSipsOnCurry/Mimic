@@ -20,164 +20,73 @@ public class CollectibleItem : MonoBehaviourPun
 
     private SpriteRenderer spriteRenderer;
     private Collider2D itemCollider;
-    private int ownerActorNumber = -1;
     private bool collected;
 
     private void Awake()
     {
         spriteRenderer = GetComponentInChildren<SpriteRenderer>();
         itemCollider = GetComponent<Collider2D>();
-
-        ReadPhotonSpawnData();
-        ApplySpriteFromIndex();
-        ApplyLocalVisibility();
+        ReadSpawnData();
     }
 
-    private void ReadPhotonSpawnData()
+    private void ReadSpawnData()
     {
         if (PhotonNetwork.InRoom &&
             photonView != null &&
             photonView.InstantiationData != null &&
-            photonView.InstantiationData.Length >= 2)
+            photonView.InstantiationData.Length >= 1)
         {
-            ownerActorNumber = (int)photonView.InstantiationData[0];
-            int spriteIndex = (int)photonView.InstantiationData[1];
+            int spriteIndex = (int)photonView.InstantiationData[0];
             ApplySprite(spriteIndex);
         }
-        else if (!PhotonNetwork.InRoom)
-        {
-            ownerActorNumber = 1;
-        }
 
-        Debug.Log($"{name} belongs to actor {ownerActorNumber}. Local actor is {(PhotonNetwork.LocalPlayer != null ? PhotonNetwork.LocalPlayer.ActorNumber : -1)}");
+        if (itemCollider != null)
+            itemCollider.isTrigger = true;
     }
 
-    public void SetupOffline(int actorNumber, int spriteIndex)
+    public void SetupOffline(int spriteIndex)
     {
-        ownerActorNumber = actorNumber;
-
-        if (spriteRenderer == null)
-        {
-            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-        }
-
-        if (itemCollider == null)
-        {
-            itemCollider = GetComponent<Collider2D>();
-        }
+        spriteRenderer = spriteRenderer != null ? spriteRenderer : GetComponentInChildren<SpriteRenderer>();
+        itemCollider = itemCollider != null ? itemCollider : GetComponent<Collider2D>();
 
         ApplySprite(spriteIndex);
-        ApplyLocalVisibility();
-    }
 
-    private void ApplySpriteFromIndex()
-    {
-        if (PhotonNetwork.InRoom &&
-            photonView != null &&
-            photonView.InstantiationData != null &&
-            photonView.InstantiationData.Length >= 2)
-        {
-            int spriteIndex = (int)photonView.InstantiationData[1];
-            ApplySprite(spriteIndex);
-        }
+        if (itemCollider != null)
+            itemCollider.isTrigger = true;
     }
 
     private void ApplySprite(int spriteIndex)
     {
-        if (spriteRenderer == null)
-        {
-            return;
-        }
-
-        if (possibleSprites == null || possibleSprites.Length == 0)
-        {
-            return;
-        }
-
-        int safeIndex = Mathf.Abs(spriteIndex) % possibleSprites.Length;
-        spriteRenderer.sprite = possibleSprites[safeIndex];
-    }
-
-    private void ApplyLocalVisibility()
-    {
-        bool visibleToMe = IsOwnedByLocalPlayer();
-
-        if (spriteRenderer != null)
-        {
-            spriteRenderer.enabled = visibleToMe;
-            spriteRenderer.color = normalColor;
-        }
-
-        if (itemCollider != null)
-        {
-            itemCollider.enabled = visibleToMe;
-            itemCollider.isTrigger = true;
-        }
+        if (spriteRenderer == null || possibleSprites == null || possibleSprites.Length == 0) return;
+        spriteRenderer.sprite = possibleSprites[Mathf.Abs(spriteIndex) % possibleSprites.Length];
     }
 
     private void Update()
     {
-        if (collected)
-        {
-            return;
-        }
-
-        if (!IsOwnedByLocalPlayer())
-        {
-            return;
-        }
+        if (collected) return;
 
         Transform localPlayer = FindLocalPlayer();
-
-        if (localPlayer == null)
-        {
-            UpdateGlow(false);
-            return;
-        }
-
-        float distance = Vector2.Distance(transform.position, localPlayer.position);
-        bool canCollect = distance <= collectDistance;
+        bool canCollect = localPlayer != null &&
+                          Vector2.Distance(transform.position, localPlayer.position) <= collectDistance;
 
         UpdateGlow(canCollect);
 
         if (canCollect && Input.GetKeyDown(KeyCode.Space))
-        {
             RequestCollect();
-        }
     }
 
-    private bool IsOwnedByLocalPlayer()
-    {
-        if (!PhotonNetwork.InRoom)
-        {
-            return true;
-        }
-
-        return PhotonNetwork.LocalPlayer != null &&
-               PhotonNetwork.LocalPlayer.ActorNumber == ownerActorNumber;
-    }
-
-    private Transform FindLocalPlayer()
+    private static Transform FindLocalPlayer()
     {
 #if UNITY_2023_1_OR_NEWER
         PlayerMovement[] players = FindObjectsByType<PlayerMovement>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
 #else
         PlayerMovement[] players = FindObjectsOfType<PlayerMovement>();
 #endif
-
-        foreach (PlayerMovement player in players)
+        foreach (var p in players)
         {
-            if (player == null || !player.gameObject.activeInHierarchy)
-            {
-                continue;
-            }
-
-            PhotonView view = player.GetComponent<PhotonView>();
-
-            if (view == null || view.IsMine)
-            {
-                return player.transform;
-            }
+            if (p == null || !p.gameObject.activeInHierarchy) continue;
+            PhotonView pv = p.GetComponent<PhotonView>();
+            if (pv == null || pv.IsMine) return p.transform;
         }
 
         return null;
@@ -185,10 +94,7 @@ public class CollectibleItem : MonoBehaviourPun
 
     private void UpdateGlow(bool glowing)
     {
-        if (spriteRenderer == null)
-        {
-            return;
-        }
+        if (spriteRenderer == null) return;
 
         if (!glowing)
         {
@@ -202,57 +108,42 @@ public class CollectibleItem : MonoBehaviourPun
 
     private void RequestCollect()
     {
-        if (collected)
-        {
-            return;
-        }
-
+        if (collected) return;
         collected = true;
 
         if (!PhotonNetwork.InRoom)
         {
-            CollectibleSpawner.NotifyCollected(ownerActorNumber);
             PlayCollectSound();
+            if (GameManager.Instance != null) GameManager.Instance.AddToken();
             Destroy(gameObject, destroyDelayAfterCollect);
             return;
         }
 
-        photonView.RPC(nameof(CollectOnMaster), RpcTarget.MasterClient, PhotonNetwork.LocalPlayer.ActorNumber);
-    }
-
-    private void PlayCollectSound()
-    {
-        if (collectSound == null)
-        {
-            return;
-        }
-
-        AudioSource.PlayClipAtPoint(collectSound, transform.position);
+        photonView.RPC(nameof(RPC_CollectOnMaster), RpcTarget.MasterClient);
     }
 
     [PunRPC]
-    private void PlayCollectSoundRpc()
+    private void RPC_CollectOnMaster()
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.AddToken();
+
+        photonView.RPC(nameof(RPC_PlaySound), RpcTarget.All);
+        PhotonNetwork.Destroy(gameObject);
+    }
+
+    [PunRPC]
+    private void RPC_PlaySound()
     {
         PlayCollectSound();
     }
 
-    [PunRPC]
-    private void CollectOnMaster(int requestingActorNumber)
+    private void PlayCollectSound()
     {
-        if (!PhotonNetwork.IsMasterClient)
-        {
-            return;
-        }
-
-        if (requestingActorNumber != ownerActorNumber)
-        {
-            Debug.LogWarning($"Actor {requestingActorNumber} tried to collect actor {ownerActorNumber}'s item.");
-            return;
-        }
-
-        CollectibleSpawner.NotifyCollected(ownerActorNumber);
-        photonView.RPC(nameof(PlayCollectSoundRpc), RpcTarget.All);
-        PhotonNetwork.Destroy(gameObject);
+        if (collectSound != null)
+            AudioSource.PlayClipAtPoint(collectSound, transform.position);
     }
 
     private void OnDrawGizmosSelected()
