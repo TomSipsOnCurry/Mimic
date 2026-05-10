@@ -321,21 +321,10 @@ public class PlayerMovement : MonoBehaviour, IPunObservable
 
     private static int GetPlayerNumberForActor(int actorNumber)
     {
-        if (!PhotonNetwork.InRoom || actorNumber <= 0)
-        {
-            return Mathf.Max(1, actorNumber);
-        }
-
-        int playerNumber = 1;
-        for (int i = 0; i < PhotonNetwork.PlayerList.Length; i++)
-        {
-            if (PhotonNetwork.PlayerList[i].ActorNumber < actorNumber)
-            {
-                playerNumber++;
-            }
-        }
-
-        return playerNumber;
+        // Use the actor number directly as the variant index.
+        // Actor numbers are assigned on join and never reassigned when other players leave,
+        // so this prevents colour changes when someone disconnects mid-game.
+        return Mathf.Max(1, actorNumber);
     }
 
     private bool DestroyIfDuplicateLocalPhotonPlayer()

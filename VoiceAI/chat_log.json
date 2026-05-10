@@ -272,6 +272,20 @@
             "source": "local",
             "timestampUtc": "2026-05-10T02:30:10.6505490Z",
             "gameTime": 113.89354705810547
+        },
+        {
+            "sender": "Player_5372",
+            "message": "shut up",
+            "source": "photon",
+            "timestampUtc": "2026-05-10T02:47:50.8430160Z",
+            "gameTime": 32.39999008178711
+        },
+        {
+            "sender": "Player_5463",
+            "message": "hello?",
+            "source": "local",
+            "timestampUtc": "2026-05-10T02:48:09.3242430Z",
+            "gameTime": 50.885345458984378
         }
     ]
 }
