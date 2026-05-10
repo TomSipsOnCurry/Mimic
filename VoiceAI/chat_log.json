@@ -272,6 +272,27 @@
             "source": "local",
             "timestampUtc": "2026-05-10T02:30:10.6505490Z",
             "gameTime": 113.89354705810547
+        },
+        {
+            "sender": "Player_5968",
+            "message": "wsg",
+            "source": "photon",
+            "timestampUtc": "2026-05-10T02:38:45.8112605Z",
+            "gameTime": 277.2398986816406
+        },
+        {
+            "sender": "Player_7121",
+            "message": "bro",
+            "source": "photon",
+            "timestampUtc": "2026-05-10T02:38:49.6718517Z",
+            "gameTime": 281.09991455078127
+        },
+        {
+            "sender": "Player_7121",
+            "message": "im scared",
+            "source": "photon",
+            "timestampUtc": "2026-05-10T02:38:52.3928343Z",
+            "gameTime": 283.81988525390627
         }
     ]
 }
